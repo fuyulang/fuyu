@@ -1,0 +1,11 @@
+[package]
+name = "fuyu"
+version = "0.1.1"
+authors = ["Adam Christiansen <code@adamc.io>"]
+edition = "2021"
+description = "The Fuyu programming language"
+homepage = "https://fuyulang.dev"
+repository = "https://github.com/fuyulang/fuyu"
+license = "MPL-2.0"
+keywords = ["concurrent", "functional"]
+categories = ["compilers", "concurrency"]
