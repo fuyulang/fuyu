@@ -7,5 +7,12 @@ description = "The Fuyu programming language"
 homepage = "https://fuyulang.dev"
 repository = "https://github.com/fuyulang/fuyu"
 license = "MPL-2.0"
+license_file = "LICENSE"
 keywords = ["concurrent", "functional"]
 categories = ["compilers", "concurrency"]
+include = [
+  "/Cargo.toml",
+  "/LICENSE",
+  "/README.md",
+  "/src/**/*.rs",
+]
