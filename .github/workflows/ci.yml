@@ -10,8 +10,23 @@ env:
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
-  build:
-    name: build-${{ matrix.os }}
+  build-debug:
+    name: build-debug-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
+
+  build-release:
+    name: build-release-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
