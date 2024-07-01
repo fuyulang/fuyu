@@ -8,6 +8,7 @@ env:
   CARGO_TERM_COLOR: always
   # A job fails if any Rust warnings are emitted.
   RUSTFLAGS: "-Dwarnings"
+  RUSTDOCFLAGS: "-Dwarnings"
 
 jobs:
   build-debug:
@@ -21,9 +22,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --workspace --verbose
       - name: Test
-        run: cargo test --verbose
+        run: cargo test --workspace --verbose
 
   build-release:
     name: build-release-${{ matrix.os }}
@@ -36,9 +37,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build
-        run: cargo build --verbose --release
+        run: cargo build --workspace --verbose --release
       - name: Test
-        run: cargo test --verbose --release
+        run: cargo test --workspace --verbose --release
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check formatting
+        run: cargo doc --workspace --verbose --document-private-items
+
+  doc-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check formatting
+        run: cargo test --workspace --verbose --doc
 
   fmt:
     runs-on: ubuntu-latest
@@ -46,7 +63,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Check formatting
-        run: cargo fmt --verbose --check
+        run: cargo fmt --all --verbose --check
 
   lint:
     runs-on: ubuntu-latest
@@ -54,7 +71,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Clippy
-        run: cargo clippy --verbose --all-targets --all-features
+        run: cargo clippy --workspace --verbose --all-targets --all-features
 
   package:
     runs-on: ubuntu-latest
@@ -62,4 +79,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Package
-        run: cargo package --verbose --all-features
+        run: cargo package --workspace --verbose --all-features
