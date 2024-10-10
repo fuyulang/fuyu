@@ -1,10 +1,10 @@
 [package]
 name = "fuyu"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Adam Christiansen <code@adamc.io>"]
 edition = "2021"
 description = "The Fuyu programming language"
-homepage = "https://fuyulang.dev"
+homepage = "https://fuyulang.org"
 repository = "https://github.com/fuyulang/fuyu"
 license = "MPL-2.0"
 keywords = ["concurrent", "functional"]

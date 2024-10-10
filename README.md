@@ -5,20 +5,13 @@
   <a href="https://crates.io/crates/fuyu"><img src="https://img.shields.io/crates/v/fuyu?style=flat-square" alt="Crates.io version"></a>
 </p>
 
-**Check it out &rarr; [fuyulang.dev](https://fuyulang.dev)**
+**Check it out &rarr; [fuyulang.org](https://fuyulang.org)**
 
 Fuyu is a concurrent functional programming language.
-
-> [!NOTE]
-> Fuyu does not yet have a release.
-
-
 
 ## Contributing
 
 Refer to [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-
-
 
 ## License
 
