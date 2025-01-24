@@ -1,16 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
 
-pub fn fuyu() -> &'static str {
-    "fuyu"
-}
+//! TODO Module level docs.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = fuyu();
-        assert_eq!(result, "fuyu");
-    }
-}
+pub mod compiler;
