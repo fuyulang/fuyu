@@ -11,9 +11,18 @@ Fuyu is a concurrent functional programming language.
 
 ## Contributing
 
-Refer to [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+Get started in the [discussions](https://github.com/orgs/fuyulang/discussions)
+or look at open [issues](https://github.com/fuyulang/fuyu/issues).
+
+Be sure to follow the [`CONTRIBUTING.md`](./CONTRIBUTING.md) guidelines and the
+[Code of Conduct](https://github.com/fuyulang/fuyu?tab=coc-ov-file#readme).
 
 ## License
 
 Fuyu is licensed under the Mozilla Public License Version 2.0 (MPL-2.0). Refer
 to the [`LICENSE`](./LICENSE) file for the full text.
+
+## Maintainers
+
+This project is maintained by
+[@adamchristiansen](https://github.com/adamchristiansen).
