@@ -13,5 +13,17 @@ include = [
   "/Cargo.toml",
   "/LICENSE",
   "/README.md",
+  "/src/**/*.lalrpop",
   "/src/**/*.rs",
 ]
+
+[dependencies]
+# TODO: Determine minimum version numbers.
+lalrpop-util = "0.22.1"
+num-bigint = "0.4.6"
+
+[build-dependencies]
+# TODO: Determine minimum version numbers.
+#       Or are build-depedecnies not shard between crates?
+#       If this is the case then simply leave this as the latest specific version that is known to work.
+lalrpop = "0.22.1"

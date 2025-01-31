@@ -8,11 +8,10 @@
 //! compilation stops.
 //!
 //! 1. The [`Lexer`] is an iterator of [`Spanned`] [`Token`]s from a source [`Text`].
+//! 2. TODO: Add parser to list.
 
-mod lexer;
-mod text;
-mod token;
-
-pub use lexer::*;
-pub use text::*;
-pub use token::*;
+pub mod ast;
+pub mod lexer;
+pub mod parser;
+pub mod text;
+pub mod token;

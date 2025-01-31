@@ -1,0 +1,565 @@
+// SPDX-License-Identifier: MPL-2.0
+
+use super::State;
+use super::super::ast::{self, Span};
+use super::super::lexer::LexerError;
+use super::super::text::ByteIdx;
+use super::super::token::Token;
+
+grammar<'a>(state: &State<'a>);
+
+extern {
+    type Location = ByteIdx;
+    type Error = (ByteIdx, LexerError, ByteIdx);
+
+    enum Token {
+        BLOCK_COMMENT => Token::BlockComment,
+        LINE_COMMENT => Token::LineComment,
+        DOC_COMMENT => Token::DocComment,
+        SHEBANG_COMMENT => Token::ShebangComment,
+        LOWER_IDENT => Token::LowerIdent,
+        RAW_LOWER_IDENT => Token::RawLowerIdent,
+        UPPER_IDENT => Token::UpperIdent,
+        RAW_UPPER_IDENT => Token::RawUpperIdent,
+        UNDERSCORE => Token::Underscore,
+        AS => Token::KwAs,
+        ELSE => Token::KwElse,
+        EXPORT => Token::KwExport,
+        FN => Token::KwFn,
+        IF => Token::KwIf,
+        IMMEDIATE => Token::KwImmediate,
+        IMPORT => Token::KwImport,
+        LET => Token::KwLet,
+        MATCH => Token::KwMatch,
+        NONEXHAUSTIVE => Token::KwNonexhaustive,
+        PROVIDE => Token::KwProvide,
+        RETURN => Token::KwReturn,
+        SELECT => Token::KwSelect,
+        SELF => Token::KwSelf,
+        THEN => Token::KwThen,
+        TRANSPARENT => Token::KwTransparent,
+        TYPE => Token::KwType,
+        USE => Token::KwUse,
+        WITH => Token::KwWith,
+        BIN_INT => Token::BinInt,
+        OCT_INT => Token::OctInt,
+        HEX_INT => Token::HexInt,
+        DEC_INT => Token::DecInt,
+        FLOAT => Token::Float,
+        STRING => Token::String,
+        BLOCK_STRING => Token::BlockString,
+        BYTE_STRING => Token::ByteString,
+        RAW_STRING => Token::RawString,
+        RAW_BYTE_STRING => Token::RawByteString,
+        "{" => Token::LeftBrace,
+        "[" => Token::LeftBrack,
+        "(" => Token::LeftParen,
+        "}" => Token::RightBrace,
+        "]" => Token::RightBrack,
+        ")" => Token::RightParen,
+        "&&" => Token::AmpAmp,
+        "!" => Token::Bang,
+        "!=" => Token::BangEq,
+        "," => Token::Comma,
+        ":" => Token::Colon,
+        "::" => Token::ColonColon,
+        "." => Token::Dot,
+        ".." => Token::DotDot,
+        "..=" => Token::DotDotEq,
+        "=" => Token::Eq,
+        "==" => Token::EqEq,
+        "=>" => Token::EqGt,
+        ">" => Token::Gt,
+        ">=" => Token::GtEq,
+        "<" => Token::Lt,
+        "<=" => Token::LtEq,
+        "<-" => Token::LtMinus,
+        "-" => Token::Minus,
+        "->" => Token::MinusGt,
+        "%" => Token::Percent,
+        "|" => Token::Pipe,
+        "||" => Token::PipePipe,
+        "+" => Token::Plus,
+        ";" => Token::Semicolon,
+        "/" => Token::Slash,
+        "*" => Token::Star,
+        "**" => Token::StarStar,
+    }
+}
+
+/// TODO: Docs.
+pub Module: ast::ModuleAst = {
+    // TODO: Add these.
+    UNDERSCORE => todo!(),
+};
+
+//-------------------------------------------------------------------------------------------------
+// Literals.
+//-------------------------------------------------------------------------------------------------
+
+/// An integer literal in any base.
+Int: ast::Ast = {
+    <start:@L> <value:BIN_INT> <end:@R> => ast::Ast::Int {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+    <start:@L> <value:OCT_INT> <end:@R> => ast::Ast::Int {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+    <start:@L> <value:HEX_INT> <end:@R> => ast::Ast::Int {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+    <start:@L> <value:DEC_INT> <end:@R> => ast::Ast::Int {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+};
+
+/// A floating-point literal.
+Float: ast::Ast = <start:@L> <value:FLOAT> <end:@R> => ast::Ast::Float {
+    span: Span { start, end },
+    value: todo!("parse"),
+    comments: None,
+};
+
+/// Any kind of string literal.
+String: ast::Ast = {
+    <start:@L> <value:STRING> <end:@R> => ast::Ast::String {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+    <start:@L> <value:BLOCK_STRING> <end:@R> => ast::Ast::String {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+    <start:@L> <value:RAW_STRING> <end:@R> => ast::Ast::String {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+};
+
+/// Any kind of byteString literal.
+ByteString: ast::Ast = {
+    <start:@L> <value:BYTE_STRING> <end:@R> => ast::Ast::ByteString {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+    <start:@L> <value:RAW_BYTE_STRING> <end:@R> => ast::Ast::ByteString {
+        span: Span { start, end },
+        value: todo!("parse"),
+        comments: None,
+    },
+};
+
+/// A tuple literal.
+Tuple: ast::Ast = {
+    // These are split into cases for 0 and 1 or more since a trailing comma is required when there
+    // is 1 item.
+    <start:@L> "(" ")" <end:@R> => ast::Ast::Tuple {
+        span: Span {start, end },
+        exprs: vec![],
+        comments: None,
+    },
+    <start:@L> "(" <mut exprs:(<Expr> ",")+> <extra:Expr?> ")" <end:@R> => {
+        if let Some(expr) = extra {
+            exprs.push(expr)
+        }
+        ast::Ast::Tuple {
+            span: Span { start, end },
+            exprs,
+            comments: None,
+        }
+    },
+};
+
+/// A list literal.
+List: ast::Ast = <start:@L> "[" <exprs:Comma<Expr>> "]" <end:@R> => ast::Ast::List {
+    span: Span {start, end},
+    exprs,
+    comments: None,
+};
+
+//-------------------------------------------------------------------------------------------------
+// Names.
+//-------------------------------------------------------------------------------------------------
+
+/// Span of a bare lower name (e.g., `x`).
+BareLowerSpan: Span = {
+    <start:@L> <name:LOWER_IDENT> <end:@R> => Span { start, end },
+    <start:@L> <name:RAW_LOWER_IDENT> <end:@R> => Span { start, end },
+};
+
+/// Span of a bare upper name (e.g., `X`).
+BareUpperSpan: Span = {
+    <start:@L> <name:UPPER_IDENT> <end:@R> => Span { start, end },
+    <start:@L> <name:RAW_UPPER_IDENT> <end:@R> => Span { start, end },
+};
+
+/// A bare lower name (e.g., `x`).
+BareLower: ast::Ast = <name:BareLowerSpan> => ast::Ast::Name {
+    span: name.clone(),
+    namespace: None,
+    name_idx: name.start,
+    kind: ast::NameKind::Lower,
+    comments: None,
+};
+
+/// A bare upper name (e.g., `X`).
+BareUpper: ast::Ast = <name:BareUpperSpan> => ast::Ast::Name {
+    span: name.clone(),
+    namespace: None,
+    name_idx: name.start,
+    kind: ast::NameKind::Upper,
+    comments: None,
+};
+
+/// TODO: Docs.
+Name: ast::Ast = {
+    BareLower,
+    BareUpper,
+    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareLowerSpan> => ast::Ast::Name {
+        span: Span { start: namespace_span.start, end: name_span.end },
+        namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
+        name_idx: name_span.start,
+        kind: ast::NameKind::Lower,
+        comments: None,
+    },
+    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareUpperSpan> => ast::Ast::Name {
+        span: Span { start: namespace_span.start, end: name_span.end },
+        namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
+        name_idx: name_span.start,
+        kind: ast::NameKind::Upper,
+        comments: None,
+    },
+    <start:@L> UNDERSCORE <end:@R> => ast::Ast::Name {
+        span: Span { start, end },
+        namespace: None,
+        name_idx: start,
+        kind: ast::NameKind::Discard,
+        comments: None,
+    },
+}
+
+/// The `immediate` keyword.
+Immediate: ast::Ast = <start:@L> IMMEDIATE <end:@R> => ast::Ast::Immediate {
+    span: Span { start, end },
+    comments: None,
+};
+
+//-------------------------------------------------------------------------------------------------
+// Functions.
+//-------------------------------------------------------------------------------------------------
+
+/// Argument in a function declaration.
+FunctionArg: ast::FunctionArg = {
+    <start:@L> <name:BareLower?> <pattern:Pattern> <end:@R> => ast::FunctionArg {
+        span: Span { start, end },
+        name,
+        pattern,
+        type_annotation: None,
+        comments: None,
+    },
+    <start:@L> <name:BareLower?> <pattern:Pattern> <colon_idx:@L> ":" <type_:Type> <end:@R> => {
+        ast::FunctionArg {
+            span: Span { start, end },
+            name,
+            pattern,
+            type_annotation: Some(ast::FunctionArgTypeAnnotation {
+                span: Span { start: colon_idx, end: type_.span().end },
+                type_,
+                comments: None,
+            }),
+            comments: None,
+        }
+    },
+}
+
+/// A function declaration with `fn`.
+Function: ast::Ast =
+    <start:@L> FN <name:BareLowerSpan?>
+    <args_start:@L> "(" <args:Comma<FunctionArg>> ")" <args_end:@R>
+    <ret:FunctionReturnType?>
+    <body:Block>
+    <end:@R>
+=> {
+    let return_annotation = ret.map(|(span, type_)| ast::FunctionReturnAnnotation {
+        span,
+        type_: Box::new(type_),
+        comments: None,
+    });
+    ast::Ast::Function {
+        span: Span { start, end },
+        name: todo!(),
+        args_span: Span { start: args_start, end: args_end },
+        args: args,
+        return_annotation,
+        body: Box::new(body),
+        comments: None,
+    }
+};
+
+/// The return type of a function including the `->`.
+FunctionReturnType: (Span, ast::Ast) = UNDERSCORE => todo!();
+
+/// An argument to a function call.
+CallArg: ast::CallArg = {
+    <expr:Expr> => ast::CallArg { span: expr.span(), name: None, expr, comments: None },
+    <start:@L> <name:BareLowerSpan> <colon_idx:@L> ":" <expr:Expr> <end:@R> => ast::CallArg {
+        span: expr.span(),
+        name: todo!(),
+        expr,
+        comments: None,
+    },
+};
+
+/// A function call.
+Call: ast::Ast = {
+    // Form example: `f(...)`, `f(...) { ... }`.
+    <start:@L> <function:Expr>
+    <args_start:@L> "(" <args:Comma<CallArg>> ")" <args_end:@R> <block:FunctionBlock?>
+    <end:@R> => {
+        todo!()
+    },
+    // Form example: `f { ... }`.
+    <start:@L> <function:Expr> <block:FunctionBlock?> <end:@R> => {
+        todo!()
+    },
+};
+
+//-------------------------------------------------------------------------------------------------
+// Blocks.
+//-------------------------------------------------------------------------------------------------
+
+/// A block in `{...}`.
+Block: ast::Ast = {
+    <start:@L> "{"
+    <mut stmts:Stmt*> <extra:Expr?>
+    "}" <end:@R> => {
+        if let Some(value) = extra {
+            todo!("stmts.push(ast::Stmt::Value {{ value }}");
+        }
+        ast::Ast::Block {
+            span: Span { start, end },
+            args_span: None,
+            args: vec![],
+            stmts,
+            comments: None,
+        }
+    }
+};
+
+/// A block with arguments in `{ |...| ... }`.
+BlockWithArgs: ast::Ast = {
+    <start:@L> "{"
+    <args_start:@L> "|" <args:Comma<FunctionArg>> "|" <args_end:@R>
+    <mut stmts:Stmt*> <extra:Expr?>
+    "}" <end:@R> => {
+        if let Some(value) = extra {
+            todo!("stmts.push(ast::Stmt::Value {{ value }}");
+        }
+        ast::Ast::Block {
+            span: Span { start, end },
+            args_span: Some(Span { start: args_start, end: args_end }),
+            args,
+            stmts,
+            comments: None,
+        }
+    }
+};
+
+/// A block that can be passed as the last argument to a function.
+FunctionBlock: ast::Ast = {
+    Block,
+    BlockWithArgs,
+};
+
+//-------------------------------------------------------------------------------------------------
+// Operators.
+//-------------------------------------------------------------------------------------------------
+
+/// All infix operators.
+InfixOp: ast::Ast = {
+    // TODO: Ranges are weird for this.
+    UNDERSCORE => todo!(),
+};
+
+/// All prefix operators.
+PrefixOp: ast::Ast = {
+    <start:@L> "!" <expr:Expr> <end:@R> => ast::Ast::Prefix {
+        span: Span { start, end },
+        op: ast::PrefixOp::Bang,
+        expr: Box::new(expr),
+        comments: None,
+    },
+    <start:@L> "-" <expr:Expr> <end:@R> => ast::Ast::Prefix {
+        span: Span { start, end },
+        op: ast::PrefixOp::Minus,
+        expr: Box::new(expr),
+        comments: None,
+    },
+    // TODO: Ranges are weird for this.
+};
+
+/// The index operator (e.g., `value[index]`).
+Index: ast::Ast = {
+    <start:@L> <value:Expr> <index_start:@L> "[" <index:Expr> <index_end:@L> "]" <end:@R> => {
+        ast::Ast::Index {
+            span: Span { start, end },
+            value: Box::new(value),
+            index_span: Span { start: index_start, end: index_end },
+            index: Box::new(index),
+            comments: None,
+        }
+    }
+};
+
+/// An expression pipeline with `|`.
+Pipeline: ast::Ast = {
+    // This is the general case with an arbitrary function call.
+    <start:@L> <lhs:Expr> <pipe_idx:@L> "|" <call:Call> <end:@R> => ast::Ast::Pipeline {
+        span: Span { start, end },
+        lhs: Box::new(lhs),
+        pipe_idx,
+        rhs: Box::new(call),
+        comments: None,
+    },
+    // This is the simple case where a function name is specified without an argument list.
+    <start:@L> <lhs:Expr> <pipe_idx:@L> "|" <name:Name> <end:@R> => ast::Ast::Pipeline {
+        span: Span { start, end },
+        lhs: Box::new(lhs),
+        pipe_idx,
+        rhs: Box::new(todo!("Should this be an ast::Ast::Function?")),
+        comments: None,
+    },
+};
+
+//-------------------------------------------------------------------------------------------------
+// Parentheses.
+//-------------------------------------------------------------------------------------------------
+
+/// An expression wrapped in parentheses.
+Parentheses: ast::Ast = <start:@L> "(" <expr:Expr> ")" <end:@R> => ast::Ast::Parentheses {
+    span: Span { start, end },
+    expr: Box::new(expr),
+    comments: None,
+};
+
+//-------------------------------------------------------------------------------------------------
+// Control flow.
+//-------------------------------------------------------------------------------------------------
+
+/// An if-then-else expression.
+IfThenElse: ast::Ast = {
+    UNDERSCORE => todo!(),
+};
+
+/// A match-with expression.
+MatchWith: ast::Ast = {
+    UNDERSCORE => todo!(),
+};
+
+/// A select expression.
+Select: ast::Ast = {
+    UNDERSCORE => todo!(),
+};
+
+/// A return expression (e.g., `return x`).
+Return: ast::Ast = <start:@L> RETURN <expr:Expr> <end:@R> => ast::Ast::Return {
+    span: Span { start, end },
+    expr: Box::new(expr),
+    comments: None,
+};
+
+//-------------------------------------------------------------------------------------------------
+// Expressions.
+//-------------------------------------------------------------------------------------------------
+
+/// Anything that can be used in expression position.
+Expr: ast::Ast = {
+    // Literals.
+    Int,
+    Float,
+    String,
+    ByteString,
+    Tuple,
+    List,
+    // Names.
+    Name,
+    Immediate,
+    // Functions.
+    Function,
+    Call,
+    // Blocks.
+    Block,
+    // Operators.
+    InfixOp,
+    PrefixOp,
+    Index,
+    Pipeline,
+    Parentheses,
+    // Control flow.
+    IfThenElse,
+    MatchWith,
+    Select,
+    Return,
+};
+
+//-------------------------------------------------------------------------------------------------
+// Patterns.
+//-------------------------------------------------------------------------------------------------
+
+// TODO: Write this.
+Pattern: ast::Ast = UNDERSCORE => todo!();
+
+//-------------------------------------------------------------------------------------------------
+// Types.
+//-------------------------------------------------------------------------------------------------
+
+// TODO: Write this.
+Type: ast::Ast = UNDERSCORE => todo!();
+
+//-------------------------------------------------------------------------------------------------
+// Import/Export.
+//-------------------------------------------------------------------------------------------------
+
+// TODO: Import
+// TODO: Export
+
+//-------------------------------------------------------------------------------------------------
+// Type declarations.
+//-------------------------------------------------------------------------------------------------
+
+// TODO: Type declaration.
+
+//-------------------------------------------------------------------------------------------------
+// Binding declarations.
+//-------------------------------------------------------------------------------------------------
+
+// TODO: Let
+// TODO: Provide
+// TODO: Use
+
+/// TODO: Docs.
+Stmt: ast::Ast = UNDERSCORE => todo!();
+
+//-------------------------------------------------------------------------------------------------
+// Utilities.
+//-------------------------------------------------------------------------------------------------
+
+/// A macro for lists with an optional trailing comma.
+Comma<T>: Vec<T> = <mut items:(<T> ",")*> <extra:T?> => {
+    if let Some(item) = extra {
+        items.push(item);
+    }
+    items
+};

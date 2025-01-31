@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use super::{ByteIdx, Text, Token};
+use super::text::{ByteIdx, Text};
+use super::token::Token;
 use std::iter;
 use std::str::Chars;
 
