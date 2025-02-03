@@ -292,14 +292,12 @@ impl<'a> Lexer<'a> {
             [Some(','), ..] => self.advance_by_and_emit(1, Token::Comma),
             [Some('-'), Some('>'), ..] => self.advance_by_and_emit(2, Token::MinusGt),
             [Some('-'), ..] => self.advance_by_and_emit(1, Token::Minus),
-            [Some('.'), Some('.'), Some('='), ..] => self.advance_by_and_emit(3, Token::DotDotEq),
             [Some('.'), Some('.'), ..] => self.advance_by_and_emit(2, Token::DotDot),
             [Some('.'), ..] => self.advance_by_and_emit(1, Token::Dot),
             [Some('/'), ..] => self.advance_by_and_emit(1, Token::Slash),
             [Some(':'), Some(':'), ..] => self.advance_by_and_emit(2, Token::ColonColon),
             [Some(':'), ..] => self.advance_by_and_emit(1, Token::Colon),
             [Some(';'), ..] => self.advance_by_and_emit(1, Token::Semicolon),
-            [Some('<'), Some('-'), ..] => self.advance_by_and_emit(2, Token::LtMinus),
             [Some('<'), Some('='), ..] => self.advance_by_and_emit(2, Token::LtEq),
             [Some('<'), ..] => self.advance_by_and_emit(2, Token::Lt),
             [Some('='), Some('='), ..] => self.advance_by_and_emit(2, Token::EqEq),
@@ -412,7 +410,6 @@ impl<'a> Lexer<'a> {
                 match self.as_marked_str() {
                     // Keywords.
                     "as" => self.emit(Token::KwAs),
-                    "else" => self.emit(Token::KwElse),
                     "export" => self.emit(Token::KwExport),
                     "fn" => self.emit(Token::KwFn),
                     "if" => self.emit(Token::KwIf),
@@ -423,9 +420,7 @@ impl<'a> Lexer<'a> {
                     "nonexhaustive" => self.emit(Token::KwNonexhaustive),
                     "provide" => self.emit(Token::KwProvide),
                     "return" => self.emit(Token::KwReturn),
-                    "select" => self.emit(Token::KwSelect),
                     "self" => self.emit(Token::KwSelf),
-                    "then" => self.emit(Token::KwThen),
                     "transparent" => self.emit(Token::KwTransparent),
                     "type" => self.emit(Token::KwType),
                     "use" => self.emit(Token::KwUse),
@@ -802,7 +797,6 @@ mod tests {
         scan!("::", ok: Token::ColonColon);
         scan!(".", ok: Token::Dot);
         scan!("..", ok: Token::DotDot);
-        scan!("..=", ok: Token::DotDotEq);
         scan!("=", ok: Token::Eq);
         scan!("==", ok: Token::EqEq);
         scan!("=>", ok: Token::EqGt);
@@ -810,7 +804,6 @@ mod tests {
         scan!(">=", ok: Token::GtEq);
         scan!("<", ok: Token::Lt);
         scan!("<=", ok: Token::LtEq);
-        scan!("<-", ok: Token::LtMinus);
         scan!("-", ok: Token::Minus);
         scan!("->", ok: Token::MinusGt);
         scan!("%", ok: Token::Percent);
@@ -1012,7 +1005,6 @@ mod tests {
     #[test]
     fn scan_keywords() {
         scan!("as", ok: Token::KwAs);
-        scan!("else", ok: Token::KwElse);
         scan!("export", ok: Token::KwExport);
         scan!("fn", ok: Token::KwFn);
         scan!("if", ok: Token::KwIf);
@@ -1023,9 +1015,7 @@ mod tests {
         scan!("nonexhaustive", ok: Token::KwNonexhaustive);
         scan!("provide", ok: Token::KwProvide);
         scan!("return", ok: Token::KwReturn);
-        scan!("select", ok: Token::KwSelect);
         scan!("self", ok: Token::KwSelf);
-        scan!("then", ok: Token::KwThen);
         scan!("transparent", ok: Token::KwTransparent);
         scan!("type", ok: Token::KwType);
         scan!("use", ok: Token::KwUse);
