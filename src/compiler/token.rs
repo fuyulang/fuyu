@@ -28,8 +28,6 @@ pub enum Token {
     Underscore,
     /// The `as` keyword.
     KwAs,
-    /// The `else` keyword.
-    KwElse,
     /// The `export` keyword.
     KwExport,
     /// The `fn` keyword.
@@ -50,12 +48,8 @@ pub enum Token {
     KwProvide,
     /// The `return` keyword.
     KwReturn,
-    /// The `select` keyword.
-    KwSelect,
     /// The `self` keyword.
     KwSelf,
-    /// The `then` keyword.
-    KwThen,
     /// The `transparent` keyword.
     KwTransparent,
     /// The `type` keyword.
@@ -122,8 +116,6 @@ pub enum Token {
     Dot,
     /// `..`.
     DotDot,
-    /// `..=`.
-    DotDotEq,
     /// `=`.
     Eq,
     /// `==`.
@@ -138,8 +130,6 @@ pub enum Token {
     Lt,
     /// `<=`.
     LtEq,
-    /// `<-`.
-    LtMinus,
     /// `-`.
     Minus,
     /// `->`.
