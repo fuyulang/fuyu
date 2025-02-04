@@ -33,7 +33,6 @@ extern {
         NONEXHAUSTIVE => Token::KwNonexhaustive,
         PROVIDE => Token::KwProvide,
         RETURN => Token::KwReturn,
-        SELECT => Token::KwSelect,
         SELF => Token::KwSelf,
         TRANSPARENT => Token::KwTransparent,
         TYPE => Token::KwType,
@@ -442,13 +441,38 @@ Parentheses: ast::Ast = <start:@L> "(" <expr:Expr> ")" <end:@R> => ast::Ast::Par
 //-------------------------------------------------------------------------------------------------
 
 /// An if expression.
-If: ast::Ast = {
-    UNDERSCORE => todo!(),
+If: ast::Ast = <start:@L> IF <clauses_idx:@L> "{" <clauses:IfClause*> "}" <end:@R> => {
+    ast::Ast::If { span: Span { start, end }, clauses_idx, clauses, comments: None }
 };
 
-/// A match-with expression.
+/// A single clause (`cond => expr`) in an `if` block.
+IfClause: ast::IfClause = <start:@L> <condition:Expr> <arrow_idx:@L> <body:Expr> <end:@R> => {
+    ast::IfClause { span: Span { start, end }, condition, arrow_idx, body, comments: None }
+};
+
+/// A match expression.
 Match: ast::Ast = {
-    UNDERSCORE => todo!(),
+    <start:@L> MATCH <value:Expr> <with_idx:@L> WITH <clauses_idx:@L> "{"
+        <clauses:MatchClause*>
+    "}" <end:@R> => ast::Ast::Match {
+        span: Span { start, end },
+        value: Box::new(value),
+        with_idx,
+        clauses_idx,
+        clauses,
+        comments: None,
+    }
+};
+
+/// A single clause (`pat (if cond)? => expr`) in a `match` block.
+MatchClause: ast::MatchClause = {
+    // TODO: Use MatchGuard production.
+    UNDERSCORE => todo!()
+}
+
+/// An optional `if` guard to a match clause.
+MatchGuard: ast::MatchGuard = <start:@L> IF <condition:Expr> <end:@R> => ast::MatchGuard {
+    span: Span { start, end }, condition, comments: None
 };
 
 /// A return expression (e.g., `return x`).
@@ -532,6 +556,7 @@ Stmt: ast::Ast = UNDERSCORE => todo!();
 // Utilities.
 //-------------------------------------------------------------------------------------------------
 
+// TODO: Remove this because the positions of the commas need to be tracked.
 /// A macro for lists with an optional trailing comma.
 Comma<T>: Vec<T> = <mut items:(<T> ",")*> <extra:T?> => {
     if let Some(item) = extra {
