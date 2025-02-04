@@ -239,20 +239,6 @@ pub enum Ast {
         comments: Option<Comments>,
     },
 
-    /// The indexing operation.
-    Index {
-        #[doc = doc!(span: "index operation"; including: "left-hand side", "`[`", "`]`")]
-        span: Span,
-        /// The expression being indexed.
-        value: Box<Self>,
-        #[doc = doc!(span: "index"; including: "`[`", "`]`")]
-        index_span: Span,
-        /// The index.
-        index: Box<Self>,
-        #[doc = doc!(comment)]
-        comments: Option<Comments>,
-    },
-
     // TODO: Make this store all stages of a pipeline in a Vec<Self>.
     /// A computation pipeline.
     Pipeline {
@@ -284,56 +270,30 @@ pub enum Ast {
         comments: Option<Comments>,
     },
 
-    /// An if-then-else expression.
+    /// An if expression.
     If {
-        #[doc = doc!(span: "if-then-else"; including: "`if`", "trailing `}`")]
+        #[doc = doc!(span: "if expression"; including: "`if`", "trailing `}`")]
         span: Span,
-        /// The condition of the `if`.
-        cond: Box<Self>,
-        #[doc = doc!(index: "`then`")]
-        then_idx: ByteIdx,
-        /// The `then` body.
-        then_body: Box<Self>,
-        // TODO: Pull else_* into a struct.
-        #[doc = doc!(index: "`else`")]
-        else_idx: Option<ByteIdx>,
-        /// The `else` body.
-        else_body: Option<Box<Self>>,
+        #[doc = doc!(span: "condition clauses"; including: "`{`", "`}`")]
+        clauses_span: Span,
+        /// The clauses to branch on.
+        clauses: Vec<IfClause>,
         #[doc = doc!(comment)]
         comments: Option<Comments>,
     },
 
     /// A match-with expression.
     Match {
-        #[doc = doc!(span: "match-with"; including: "`match`", "trailing `}`")]
+        #[doc = doc!(span: "match expression"; including: "`match`", "trailing `}`")]
         span: Span,
         /// The value to deconstruct as a pattern match.
         value: Box<Self>,
         #[doc = doc!(index: "`with`")]
         with_idx: ByteIdx,
-        #[doc = doc!(span: "index"; including: "`[`", "`]`")]
+        #[doc = doc!(span: "match clauses"; including: "`{`", "`}`")]
         clauses_span: Span,
         /// The clauses to match on.
-        clauses: Vec<Self>,
-        #[doc = doc!(comment)]
-        comments: Option<Comments>,
-    },
-
-    // TODO: Extract as struct?
-    /// TODO Docs.
-    MatchClause {
-        #[doc = doc!(span: "match clause"; including: "pattern", "`=>`", "body")]
-        span: Span,
-        // TODO: Add fields.
-        #[doc = doc!(comment)]
-        comments: Option<Comments>,
-    },
-
-    /// A select expression.
-    Select {
-        #[doc = doc!(span: "select"; including: "`select`", "trailing `}`")]
-        span: Span,
-        // TODO: Add fields.
+        clauses: Vec<MatchClause>,
         #[doc = doc!(comment)]
         comments: Option<Comments>,
     },
@@ -415,6 +375,65 @@ pub struct Comments {
     // TODO: Add fields.
 }
 
+/// The kind of a name depending on its casing and charaacters.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NameKind {
+    /// A lower case name.
+    Lower,
+    /// An uppercase name.
+    Upper,
+    /// The `_`.
+    Discard,
+}
+
+/// A binary infix operator.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InfixOp {
+    /// `&&`.
+    AmpAmp,
+    /// `!=`.
+    BangEq,
+    /// `.`.
+    Dot,
+    /// `..`.
+    DotDot,
+    /// `==`.
+    EqEq,
+    /// `=>`.
+    EqGt,
+    /// `>`.
+    Gt,
+    /// `>=`.
+    GtEq,
+    /// `<`.
+    Lt,
+    /// `<=`.
+    LtEq,
+    /// `-`.
+    Minus,
+    /// `%`.
+    Percent,
+    /// `||`.
+    PipePipe,
+    /// `+`.
+    Plus,
+    /// `/`.
+    Slash,
+    /// `*`.
+    Star,
+    /// `**`.
+    StarStar,
+}
+
+/// A unary prefix operator.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PrefixOp {
+    /// `!`.
+    Bang,
+    /// `-`.
+    Minus,
+}
+
 /// A namespace prefix.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Namespace {
@@ -489,65 +508,47 @@ pub struct CallArgName {
     pub comments: Option<Comments>,
 }
 
-/// The kind of a name depending on its casing and charaacters.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum NameKind {
-    /// A lower case name.
-    Lower,
-    /// An uppercase name.
-    Upper,
-    /// The `_`.
-    Discard,
+/// A clause in the body of an if expression.
+#[derive(Clone, Debug, PartialEq)]
+pub struct IfClause {
+    #[doc = doc!(span: "if clause"; including: "pattern", "`=>`", "body")]
+    pub span: Span,
+    /// The condition to evaluate.
+    pub condition: Ast,
+    #[doc = doc!(index: "`=>`")]
+    pub arrow_idx: ByteIdx,
+    /// The body to evaluate when the condition is satisfied.
+    pub body: Ast,
+    #[doc = doc!(comment)]
+    pub comments: Option<Comments>,
 }
 
-/// A binary infix operator.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum InfixOp {
-    /// `&&`.
-    AmpAmp,
-    /// `!=`.
-    BangEq,
-    /// `.`.
-    Dot,
-    /// `..`.
-    DotDot,
-    /// `..=`.
-    DotDotEq,
-    /// `==`.
-    EqEq,
-    /// `=>`.
-    EqGt,
-    /// `>`.
-    Gt,
-    /// `>=`.
-    GtEq,
-    /// `<`.
-    Lt,
-    /// `<=`.
-    LtEq,
-    /// `-`.
-    Minus,
-    /// `%`.
-    Percent,
-    /// `||`.
-    PipePipe,
-    /// `+`.
-    Plus,
-    /// `/`.
-    Slash,
-    /// `*`.
-    Star,
-    /// `**`.
-    StarStar,
+/// A clause in the body of a match expression.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchClause {
+    #[doc = doc!(span: "match clause"; including: "pattern", "`=>`", "body")]
+    pub span: Span,
+    /// The pattern to check.
+    pub pattern: Box<Ast>,
+    /// The guard condition.
+    pub guard: Option<MatchGuard>,
+    #[doc = doc!(index: "`=>`")]
+    pub arrow_idx: ByteIdx,
+    /// The body to evaluate when the pattern is matched.
+    pub body: Box<Ast>,
+    #[doc = doc!(comment)]
+    pub comments: Option<Comments>,
 }
 
-/// A unary prefix operator.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum PrefixOp {
-    /// `!`.
-    Bang,
-    /// `-`.
-    Minus,
+/// A clause in the body of a match expression.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchGuard {
+    #[doc = doc!(span: "match clause"; including: "`if`", "condition")]
+    pub span: Span,
+    /// The guard condition.
+    pub condition: Ast,
+    #[doc = doc!(comment)]
+    pub comments: Option<Comments>,
 }
 
 // TODO: Move this to a different file?

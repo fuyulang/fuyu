@@ -23,7 +23,6 @@ extern {
         RAW_UPPER_IDENT => Token::RawUpperIdent,
         UNDERSCORE => Token::Underscore,
         AS => Token::KwAs,
-        ELSE => Token::KwElse,
         EXPORT => Token::KwExport,
         FN => Token::KwFn,
         IF => Token::KwIf,
@@ -36,7 +35,6 @@ extern {
         RETURN => Token::KwReturn,
         SELECT => Token::KwSelect,
         SELF => Token::KwSelf,
-        THEN => Token::KwThen,
         TRANSPARENT => Token::KwTransparent,
         TYPE => Token::KwType,
         USE => Token::KwUse,
@@ -65,7 +63,6 @@ extern {
         "::" => Token::ColonColon,
         "." => Token::Dot,
         ".." => Token::DotDot,
-        "..=" => Token::DotDotEq,
         "=" => Token::Eq,
         "==" => Token::EqEq,
         "=>" => Token::EqGt,
@@ -73,7 +70,6 @@ extern {
         ">=" => Token::GtEq,
         "<" => Token::Lt,
         "<=" => Token::LtEq,
-        "<-" => Token::LtMinus,
         "-" => Token::Minus,
         "->" => Token::MinusGt,
         "%" => Token::Percent,
@@ -410,19 +406,6 @@ PrefixOp: ast::Ast = {
     // TODO: Ranges are weird for this.
 };
 
-/// The index operator (e.g., `value[index]`).
-Index: ast::Ast = {
-    <start:@L> <value:Expr> <index_start:@L> "[" <index:Expr> <index_end:@L> "]" <end:@R> => {
-        ast::Ast::Index {
-            span: Span { start, end },
-            value: Box::new(value),
-            index_span: Span { start: index_start, end: index_end },
-            index: Box::new(index),
-            comments: None,
-        }
-    }
-};
-
 /// An expression pipeline with `|`.
 Pipeline: ast::Ast = {
     // This is the general case with an arbitrary function call.
@@ -458,18 +441,13 @@ Parentheses: ast::Ast = <start:@L> "(" <expr:Expr> ")" <end:@R> => ast::Ast::Par
 // Control flow.
 //-------------------------------------------------------------------------------------------------
 
-/// An if-then-else expression.
-IfThenElse: ast::Ast = {
+/// An if expression.
+If: ast::Ast = {
     UNDERSCORE => todo!(),
 };
 
 /// A match-with expression.
-MatchWith: ast::Ast = {
-    UNDERSCORE => todo!(),
-};
-
-/// A select expression.
-Select: ast::Ast = {
+Match: ast::Ast = {
     UNDERSCORE => todo!(),
 };
 
@@ -504,13 +482,11 @@ Expr: ast::Ast = {
     // Operators.
     InfixOp,
     PrefixOp,
-    Index,
     Pipeline,
     Parentheses,
     // Control flow.
-    IfThenElse,
-    MatchWith,
-    Select,
+    If,
+    Match,
     Return,
 };
 
