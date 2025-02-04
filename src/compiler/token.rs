@@ -91,13 +91,13 @@ pub enum Token {
     /// `{`.
     LeftBrace,
     /// `[`.
-    LeftBrack,
+    LeftSquare,
     /// `(`.
     LeftParen,
     /// `}`.
     RightBrace,
     /// `]`.
-    RightBrack,
+    RightSquare,
     /// `)`.
     RightParen,
     /// `&&`.
