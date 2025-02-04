@@ -67,6 +67,7 @@ macro_rules! doc {
     };
 }
 
+// TODO: Should this be changed to `Expr`?
 /// Abstract syntax tree (AST).
 ///
 /// The variants represent nodes that make up the AST.
@@ -274,8 +275,8 @@ pub enum Ast {
     If {
         #[doc = doc!(span: "if expression"; including: "`if`", "trailing `}`")]
         span: Span,
-        #[doc = doc!(span: "condition clauses"; including: "`{`", "`}`")]
-        clauses_span: Span,
+        #[doc = doc!(index: "`{`")]
+        clauses_idx: ByteIdx,
         /// The clauses to branch on.
         clauses: Vec<IfClause>,
         #[doc = doc!(comment)]
@@ -290,8 +291,8 @@ pub enum Ast {
         value: Box<Self>,
         #[doc = doc!(index: "`with`")]
         with_idx: ByteIdx,
-        #[doc = doc!(span: "match clauses"; including: "`{`", "`}`")]
-        clauses_span: Span,
+        #[doc = doc!(index: "`{`")]
+        clauses_idx: ByteIdx,
         /// The clauses to match on.
         clauses: Vec<MatchClause>,
         #[doc = doc!(comment)]
