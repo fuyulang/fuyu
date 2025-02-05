@@ -93,23 +93,23 @@ pub Module: ast::ModuleAst = {
 //-------------------------------------------------------------------------------------------------
 
 /// An integer literal in any base.
-Int: ast::Ast = {
-    <start:@L> <value:BIN_INT> <end:@R> => ast::Ast::Int {
+Int: ast::Expr = {
+    <start:@L> <value:BIN_INT> <end:@R> => ast::Expr::Int {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
     },
-    <start:@L> <value:OCT_INT> <end:@R> => ast::Ast::Int {
+    <start:@L> <value:OCT_INT> <end:@R> => ast::Expr::Int {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
     },
-    <start:@L> <value:HEX_INT> <end:@R> => ast::Ast::Int {
+    <start:@L> <value:HEX_INT> <end:@R> => ast::Expr::Int {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
     },
-    <start:@L> <value:DEC_INT> <end:@R> => ast::Ast::Int {
+    <start:@L> <value:DEC_INT> <end:@R> => ast::Expr::Int {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
@@ -117,25 +117,25 @@ Int: ast::Ast = {
 };
 
 /// A floating-point literal.
-Float: ast::Ast = <start:@L> <value:FLOAT> <end:@R> => ast::Ast::Float {
+Float: ast::Expr = <start:@L> <value:FLOAT> <end:@R> => ast::Expr::Float {
     span: Span { start, end },
     value: todo!("parse"),
     comments: None,
 };
 
 /// Any kind of string literal.
-String: ast::Ast = {
-    <start:@L> <value:STRING> <end:@R> => ast::Ast::String {
+String: ast::Expr = {
+    <start:@L> <value:STRING> <end:@R> => ast::Expr::String {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
     },
-    <start:@L> <value:BLOCK_STRING> <end:@R> => ast::Ast::String {
+    <start:@L> <value:BLOCK_STRING> <end:@R> => ast::Expr::String {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
     },
-    <start:@L> <value:RAW_STRING> <end:@R> => ast::Ast::String {
+    <start:@L> <value:RAW_STRING> <end:@R> => ast::Expr::String {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
@@ -143,13 +143,13 @@ String: ast::Ast = {
 };
 
 /// Any kind of byteString literal.
-ByteString: ast::Ast = {
-    <start:@L> <value:BYTE_STRING> <end:@R> => ast::Ast::ByteString {
+ByteString: ast::Expr = {
+    <start:@L> <value:BYTE_STRING> <end:@R> => ast::Expr::ByteString {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
     },
-    <start:@L> <value:RAW_BYTE_STRING> <end:@R> => ast::Ast::ByteString {
+    <start:@L> <value:RAW_BYTE_STRING> <end:@R> => ast::Expr::ByteString {
         span: Span { start, end },
         value: todo!("parse"),
         comments: None,
@@ -157,10 +157,10 @@ ByteString: ast::Ast = {
 };
 
 /// A tuple literal.
-Tuple: ast::Ast = {
+Tuple: ast::Expr = {
     // These are split into cases for 0 and 1 or more since a trailing comma is required when there
     // is 1 item.
-    <start:@L> "(" ")" <end:@R> => ast::Ast::Tuple {
+    <start:@L> "(" ")" <end:@R> => ast::Expr::Tuple {
         span: Span {start, end },
         exprs: vec![],
         comments: None,
@@ -169,7 +169,7 @@ Tuple: ast::Ast = {
         if let Some(expr) = extra {
             exprs.push(expr)
         }
-        ast::Ast::Tuple {
+        ast::Expr::Tuple {
             span: Span { start, end },
             exprs,
             comments: None,
@@ -178,7 +178,7 @@ Tuple: ast::Ast = {
 };
 
 /// A list literal.
-List: ast::Ast = <start:@L> "[" <exprs:Comma<Expr>> "]" <end:@R> => ast::Ast::List {
+List: ast::Expr = <start:@L> "[" <exprs:Comma<Expr>> "]" <end:@R> => ast::Expr::List {
     span: Span {start, end},
     exprs,
     comments: None,
@@ -201,7 +201,7 @@ BareUpperSpan: Span = {
 };
 
 /// A bare lower name (e.g., `x`).
-BareLower: ast::Ast = <name:BareLowerSpan> => ast::Ast::Name {
+BareLower: ast::Expr = <name:BareLowerSpan> => ast::Expr::Name {
     span: name.clone(),
     namespace: None,
     name_idx: name.start,
@@ -210,7 +210,7 @@ BareLower: ast::Ast = <name:BareLowerSpan> => ast::Ast::Name {
 };
 
 /// A bare upper name (e.g., `X`).
-BareUpper: ast::Ast = <name:BareUpperSpan> => ast::Ast::Name {
+BareUpper: ast::Expr = <name:BareUpperSpan> => ast::Expr::Name {
     span: name.clone(),
     namespace: None,
     name_idx: name.start,
@@ -219,24 +219,24 @@ BareUpper: ast::Ast = <name:BareUpperSpan> => ast::Ast::Name {
 };
 
 /// TODO: Docs.
-Name: ast::Ast = {
+Name: ast::Expr = {
     BareLower,
     BareUpper,
-    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareLowerSpan> => ast::Ast::Name {
+    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareLowerSpan> => ast::Expr::Name {
         span: Span { start: namespace_span.start, end: name_span.end },
         namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
         name_idx: name_span.start,
         kind: ast::NameKind::Lower,
         comments: None,
     },
-    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareUpperSpan> => ast::Ast::Name {
+    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareUpperSpan> => ast::Expr::Name {
         span: Span { start: namespace_span.start, end: name_span.end },
         namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
         name_idx: name_span.start,
         kind: ast::NameKind::Upper,
         comments: None,
     },
-    <start:@L> UNDERSCORE <end:@R> => ast::Ast::Name {
+    <start:@L> UNDERSCORE <end:@R> => ast::Expr::Name {
         span: Span { start, end },
         namespace: None,
         name_idx: start,
@@ -246,7 +246,7 @@ Name: ast::Ast = {
 }
 
 /// The `immediate` keyword.
-Immediate: ast::Ast = <start:@L> IMMEDIATE <end:@R> => ast::Ast::Immediate {
+Immediate: ast::Expr = <start:@L> IMMEDIATE <end:@R> => ast::Expr::Immediate {
     span: Span { start, end },
     comments: None,
 };
@@ -280,7 +280,7 @@ FunctionArg: ast::FunctionArg = {
 }
 
 /// A function declaration with `fn`.
-Function: ast::Ast =
+Function: ast::Expr =
     <start:@L> FN <name:BareLowerSpan?>
     <args_start:@L> "(" <args:Comma<FunctionArg>> ")" <args_end:@R>
     <ret:FunctionReturnType?>
@@ -292,7 +292,7 @@ Function: ast::Ast =
         type_: Box::new(type_),
         comments: None,
     });
-    ast::Ast::Function {
+    ast::Expr::Function {
         span: Span { start, end },
         name: todo!(),
         args_span: Span { start: args_start, end: args_end },
@@ -304,7 +304,7 @@ Function: ast::Ast =
 };
 
 /// The return type of a function including the `->`.
-FunctionReturnType: (Span, ast::Ast) = UNDERSCORE => todo!();
+FunctionReturnType: (Span, ast::Expr) = UNDERSCORE => todo!();
 
 /// An argument to a function call.
 CallArg: ast::CallArg = {
@@ -318,7 +318,7 @@ CallArg: ast::CallArg = {
 };
 
 /// A function call.
-Call: ast::Ast = {
+Call: ast::Expr = {
     // Form example: `f(...)`, `f(...) { ... }`.
     <start:@L> <function:Expr>
     <args_start:@L> "(" <args:Comma<CallArg>> ")" <args_end:@R> <block:FunctionBlock?>
@@ -336,14 +336,14 @@ Call: ast::Ast = {
 //-------------------------------------------------------------------------------------------------
 
 /// A block in `{...}`.
-Block: ast::Ast = {
+Block: ast::Expr = {
     <start:@L> "{"
     <mut stmts:Stmt*> <extra:Expr?>
     "}" <end:@R> => {
         if let Some(value) = extra {
             todo!("stmts.push(ast::Stmt::Value {{ value }}");
         }
-        ast::Ast::Block {
+        ast::Expr::Block {
             span: Span { start, end },
             args_span: None,
             args: vec![],
@@ -354,7 +354,7 @@ Block: ast::Ast = {
 };
 
 /// A block with arguments in `{ |...| ... }`.
-BlockWithArgs: ast::Ast = {
+BlockWithArgs: ast::Expr = {
     <start:@L> "{"
     <args_start:@L> "|" <args:Comma<FunctionArg>> "|" <args_end:@R>
     <mut stmts:Stmt*> <extra:Expr?>
@@ -362,7 +362,7 @@ BlockWithArgs: ast::Ast = {
         if let Some(value) = extra {
             todo!("stmts.push(ast::Stmt::Value {{ value }}");
         }
-        ast::Ast::Block {
+        ast::Expr::Block {
             span: Span { start, end },
             args_span: Some(Span { start: args_start, end: args_end }),
             args,
@@ -373,7 +373,7 @@ BlockWithArgs: ast::Ast = {
 };
 
 /// A block that can be passed as the last argument to a function.
-FunctionBlock: ast::Ast = {
+FunctionBlock: ast::Expr = {
     Block,
     BlockWithArgs,
 };
@@ -383,20 +383,20 @@ FunctionBlock: ast::Ast = {
 //-------------------------------------------------------------------------------------------------
 
 /// All infix operators.
-InfixOp: ast::Ast = {
+InfixOp: ast::Expr = {
     // TODO: Ranges are weird for this.
     UNDERSCORE => todo!(),
 };
 
 /// All prefix operators.
-PrefixOp: ast::Ast = {
-    <start:@L> "!" <expr:Expr> <end:@R> => ast::Ast::Prefix {
+PrefixOp: ast::Expr = {
+    <start:@L> "!" <expr:Expr> <end:@R> => ast::Expr::Prefix {
         span: Span { start, end },
         op: ast::PrefixOp::Bang,
         expr: Box::new(expr),
         comments: None,
     },
-    <start:@L> "-" <expr:Expr> <end:@R> => ast::Ast::Prefix {
+    <start:@L> "-" <expr:Expr> <end:@R> => ast::Expr::Prefix {
         span: Span { start, end },
         op: ast::PrefixOp::Minus,
         expr: Box::new(expr),
@@ -406,9 +406,9 @@ PrefixOp: ast::Ast = {
 };
 
 /// An expression pipeline with `|`.
-Pipeline: ast::Ast = {
+Pipeline: ast::Expr = {
     // This is the general case with an arbitrary function call.
-    <start:@L> <lhs:Expr> <pipe_idx:@L> "|" <call:Call> <end:@R> => ast::Ast::Pipeline {
+    <start:@L> <lhs:Expr> <pipe_idx:@L> "|" <call:Call> <end:@R> => ast::Expr::Pipeline {
         span: Span { start, end },
         lhs: Box::new(lhs),
         pipe_idx,
@@ -416,11 +416,11 @@ Pipeline: ast::Ast = {
         comments: None,
     },
     // This is the simple case where a function name is specified without an argument list.
-    <start:@L> <lhs:Expr> <pipe_idx:@L> "|" <name:Name> <end:@R> => ast::Ast::Pipeline {
+    <start:@L> <lhs:Expr> <pipe_idx:@L> "|" <name:Name> <end:@R> => ast::Expr::Pipeline {
         span: Span { start, end },
         lhs: Box::new(lhs),
         pipe_idx,
-        rhs: Box::new(todo!("Should this be an ast::Ast::Function?")),
+        rhs: Box::new(todo!("Should this be an ast::Expr::Function?")),
         comments: None,
     },
 };
@@ -430,7 +430,7 @@ Pipeline: ast::Ast = {
 //-------------------------------------------------------------------------------------------------
 
 /// An expression wrapped in parentheses.
-Parentheses: ast::Ast = <start:@L> "(" <expr:Expr> ")" <end:@R> => ast::Ast::Parentheses {
+Parentheses: ast::Expr = <start:@L> "(" <expr:Expr> ")" <end:@R> => ast::Expr::Parentheses {
     span: Span { start, end },
     expr: Box::new(expr),
     comments: None,
@@ -441,8 +441,8 @@ Parentheses: ast::Ast = <start:@L> "(" <expr:Expr> ")" <end:@R> => ast::Ast::Par
 //-------------------------------------------------------------------------------------------------
 
 /// An if expression.
-If: ast::Ast = <start:@L> IF <clauses_idx:@L> "{" <clauses:IfClause*> "}" <end:@R> => {
-    ast::Ast::If { span: Span { start, end }, clauses_idx, clauses, comments: None }
+If: ast::Expr = <start:@L> IF <clauses_idx:@L> "{" <clauses:IfClause*> "}" <end:@R> => {
+    ast::Expr::If { span: Span { start, end }, clauses_idx, clauses, comments: None }
 };
 
 /// A single clause (`cond => expr`) in an `if` block.
@@ -451,10 +451,10 @@ IfClause: ast::IfClause = <start:@L> <condition:Expr> <arrow_idx:@L> <body:Expr>
 };
 
 /// A match expression.
-Match: ast::Ast = {
+Match: ast::Expr = {
     <start:@L> MATCH <value:Expr> <with_idx:@L> WITH <clauses_idx:@L> "{"
         <clauses:MatchClause*>
-    "}" <end:@R> => ast::Ast::Match {
+    "}" <end:@R> => ast::Expr::Match {
         span: Span { start, end },
         value: Box::new(value),
         with_idx,
@@ -476,7 +476,7 @@ MatchGuard: ast::MatchGuard = <start:@L> IF <condition:Expr> <end:@R> => ast::Ma
 };
 
 /// A return expression (e.g., `return x`).
-Return: ast::Ast = <start:@L> RETURN <expr:Expr> <end:@R> => ast::Ast::Return {
+Return: ast::Expr = <start:@L> RETURN <expr:Expr> <end:@R> => ast::Expr::Return {
     span: Span { start, end },
     expr: Box::new(expr),
     comments: None,
@@ -487,7 +487,7 @@ Return: ast::Ast = <start:@L> RETURN <expr:Expr> <end:@R> => ast::Ast::Return {
 //-------------------------------------------------------------------------------------------------
 
 /// Anything that can be used in expression position.
-Expr: ast::Ast = {
+Expr: ast::Expr = {
     // Literals.
     Int,
     Float,
@@ -519,14 +519,14 @@ Expr: ast::Ast = {
 //-------------------------------------------------------------------------------------------------
 
 // TODO: Write this.
-Pattern: ast::Ast = UNDERSCORE => todo!();
+Pattern: ast::Expr = UNDERSCORE => todo!();
 
 //-------------------------------------------------------------------------------------------------
 // Types.
 //-------------------------------------------------------------------------------------------------
 
 // TODO: Write this.
-Type: ast::Ast = UNDERSCORE => todo!();
+Type: ast::Expr = UNDERSCORE => todo!();
 
 //-------------------------------------------------------------------------------------------------
 // Import/Export.
@@ -550,7 +550,7 @@ Type: ast::Ast = UNDERSCORE => todo!();
 // TODO: Use
 
 /// TODO: Docs.
-Stmt: ast::Ast = UNDERSCORE => todo!();
+Stmt: ast::Expr = UNDERSCORE => todo!();
 
 //-------------------------------------------------------------------------------------------------
 // Utilities.
