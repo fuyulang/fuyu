@@ -21,7 +21,7 @@ pub struct Span {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModuleAst {
     // TODO: Better fields (should this have separate import, export, let, fn, type, use, and provide lists?).
-    nodes: Vec<Ast>,
+    nodes: Vec<Expr>,
 }
 
 /// This is used to provide consistent documentation across the types defined in this file.
@@ -67,12 +67,9 @@ macro_rules! doc {
     };
 }
 
-// TODO: Should this be changed to `Expr`?
-/// Abstract syntax tree (AST).
-///
-/// The variants represent nodes that make up the AST.
+/// An expression that can appear in the source.
 #[derive(Clone, Debug, PartialEq)]
-pub enum Ast {
+pub enum Expr {
     /// An integer literal.
     Int {
         #[doc = doc!(span: "integer")]
@@ -452,9 +449,9 @@ pub struct FunctionArg {
     pub span: Span,
     // TODO: Add use keyword.
     /// The argument name.
-    pub name: Option<Ast>, // TODO: String?
+    pub name: Option<Expr>, // TODO: String?
     /// The argument patter (which is the main part of the argument).
-    pub pattern: Ast,
+    pub pattern: Expr,
     /// The type of the argument.
     pub type_annotation: Option<FunctionArgTypeAnnotation>,
     #[doc = doc!(comment)]
@@ -467,7 +464,7 @@ pub struct FunctionArgTypeAnnotation {
     #[doc = doc!(span: "function argument type annotation"; including: "`:`", "type")]
     pub span: Span,
     /// The type.
-    pub type_: Ast,
+    pub type_: Expr,
     #[doc = doc!(comment)]
     pub comments: Option<Comments>,
 }
@@ -478,7 +475,7 @@ pub struct FunctionReturnAnnotation {
     #[doc = doc!(span: "function return type"; including: "`->`", "type")]
     pub span: Span,
     /// The type.
-    pub type_: Box<Ast>,
+    pub type_: Box<Expr>,
     #[doc = doc!(comment)]
     pub comments: Option<Comments>,
 }
@@ -492,7 +489,7 @@ pub struct CallArg {
     /// The name of the argument.
     pub name: Option<CallArgName>,
     /// The value of the argument.
-    pub expr: Ast,
+    pub expr: Expr,
     #[doc = doc!(comment)]
     pub comments: Option<Comments>,
 }
@@ -504,7 +501,7 @@ pub struct CallArgName {
     #[doc = doc!(span: "function call argument name"; including: "name", "`:`")]
     pub span: Span, // TODO: Currently the colon is at the last index.
     /// The name.
-    pub name: Ast, // TODO: String?
+    pub name: Expr, // TODO: String?
     #[doc = doc!(comment)]
     pub comments: Option<Comments>,
 }
@@ -515,11 +512,11 @@ pub struct IfClause {
     #[doc = doc!(span: "if clause"; including: "pattern", "`=>`", "body")]
     pub span: Span,
     /// The condition to evaluate.
-    pub condition: Ast,
+    pub condition: Expr,
     #[doc = doc!(index: "`=>`")]
     pub arrow_idx: ByteIdx,
     /// The body to evaluate when the condition is satisfied.
-    pub body: Ast,
+    pub body: Expr,
     #[doc = doc!(comment)]
     pub comments: Option<Comments>,
 }
@@ -530,13 +527,13 @@ pub struct MatchClause {
     #[doc = doc!(span: "match clause"; including: "pattern", "`=>`", "body")]
     pub span: Span,
     /// The pattern to check.
-    pub pattern: Box<Ast>,
+    pub pattern: Box<Expr>,
     /// The guard condition.
     pub guard: Option<MatchGuard>,
     #[doc = doc!(index: "`=>`")]
     pub arrow_idx: ByteIdx,
     /// The body to evaluate when the pattern is matched.
-    pub body: Box<Ast>,
+    pub body: Box<Expr>,
     #[doc = doc!(comment)]
     pub comments: Option<Comments>,
 }
@@ -547,13 +544,13 @@ pub struct MatchGuard {
     #[doc = doc!(span: "match clause"; including: "`if`", "condition")]
     pub span: Span,
     /// The guard condition.
-    pub condition: Ast,
+    pub condition: Expr,
     #[doc = doc!(comment)]
     pub comments: Option<Comments>,
 }
 
 // TODO: Move this to a different file?
-impl Ast {
+impl Expr {
     /// TODO: Docs
     pub fn span(&self) -> Span {
         todo!()
