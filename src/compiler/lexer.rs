@@ -37,11 +37,11 @@ pub struct Lexer<'a> {
 ///
 /// The `Err(...)` variant represents a lexing error. In order, the fields of the tuple are in the
 /// inclusive start index, the error kind, and the exclusive end index.
-pub type Spanned = Result<(ByteIdx, Token, ByteIdx), (ByteIdx, LexerError, ByteIdx)>;
+pub type Spanned = Result<(ByteIdx, Token, ByteIdx), (ByteIdx, LexicalError, ByteIdx)>;
 
 /// The kind of an error that can be reported by the lexer.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum LexerError {
+pub enum LexicalError {
     /// A character that cannot start a token.
     Char,
 
@@ -95,14 +95,14 @@ macro_rules! scan_int {
         $lexer.advance_by(2); // Consume base marker (e.g, `0b`, `0o`, `0x`).
         if !$lexer.advance_if(pat!($pattern)) {
             $lexer.advance_while(is_text_like);
-            return $lexer.emit_error(LexerError::Number);
+            return $lexer.emit_error(LexicalError::Number);
         }
         $lexer.advance_while(pat!($pattern | '_'));
         if !$lexer.window[0].map_or(false, is_text_like) {
             $lexer.emit($kind)
         } else {
             $lexer.advance_while(is_text_like);
-            $lexer.emit_error(LexerError::Number)
+            $lexer.emit_error(LexicalError::Number)
         }
     }};
 }
@@ -209,7 +209,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Create an error that spans from the marked start index to the current index.
-    fn emit_error(&mut self, error: LexerError) -> Option<Spanned> {
+    fn emit_error(&mut self, error: LexicalError) -> Option<Spanned> {
         Some(Err((self.mark_idx, error, self.idx)))
     }
 
@@ -274,7 +274,7 @@ impl<'a> Lexer<'a> {
                 if depth == 0 {
                     self.emit(Token::BlockComment)
                 } else {
-                    self.emit_error(LexerError::UnclosedBlockComment)
+                    self.emit_error(LexicalError::UnclosedBlockComment)
                 }
             }
             //-------------------------------------------------------------------------------------
@@ -321,7 +321,7 @@ impl<'a> Lexer<'a> {
             }
             [Some('0'), Some('B' | 'O' | 'X'), ..] => {
                 self.advance_while(is_text_like);
-                self.emit_error(LexerError::BaseMarker)
+                self.emit_error(LexicalError::BaseMarker)
             }
             [Some('0'..='9'), ..] => {
                 // Decimal number.
@@ -352,16 +352,16 @@ impl<'a> Lexer<'a> {
                     kind_or_error = Ok(Token::Float);
                     self.advance(); // Consume `e`.
                     if self.advance_while(pat!('_')) > 0 {
-                        kind_or_error = Err(LexerError::Number);
+                        kind_or_error = Err(LexicalError::Number);
                     }
                     self.advance_if(pat!('+' | '-'));
                     if self.advance_while(pat!('_')) > 0 {
-                        kind_or_error = Err(LexerError::Number);
+                        kind_or_error = Err(LexicalError::Number);
                     }
                     self.advance_while(pat!('0'..='9' | '_'));
                 }
                 if self.window[0].is_some_and(is_text_like) {
-                    kind_or_error = Err(LexerError::Number);
+                    kind_or_error = Err(LexicalError::Number);
                     self.advance_while(is_text_like);
                 }
                 match kind_or_error {
@@ -385,7 +385,7 @@ impl<'a> Lexer<'a> {
                 let hashes = self.advance_while(pat!('#'));
                 if !self.advance_if(pat!('"')) {
                     self.advance_until(char::is_whitespace); // Consume sensible rest of token.
-                    return self.emit_error(LexerError::StringStart);
+                    return self.emit_error(LexicalError::StringStart);
                 }
                 self.scan_string(Token::RawString, 1, hashes, false)
             }
@@ -429,7 +429,7 @@ impl<'a> Lexer<'a> {
                                 if chars.all(pat!($pattern)) {
                                     self.emit(if raw { $raw } else { $regular })
                                 } else {
-                                    self.emit_error(LexerError::Ident)
+                                    self.emit_error(LexicalError::Ident)
                                 }
                             };
                         }
@@ -438,7 +438,7 @@ impl<'a> Lexer<'a> {
                                 Token::LowerIdent, Token::RawLowerIdent),
                             Some('A'..='Z') => classify!('A'..='Z' | 'a'..='z' | '_' | '0'..='9',
                                 Token::UpperIdent, Token::RawUpperIdent),
-                            _ => self.emit_error(LexerError::Ident),
+                            _ => self.emit_error(LexicalError::Ident),
                         }
                     }
                 }
@@ -449,7 +449,7 @@ impl<'a> Lexer<'a> {
             // Illegal character to start a token.
             [Some(_), ..] => {
                 self.advance();
-                self.emit_error(LexerError::Char)
+                self.emit_error(LexicalError::Char)
             }
             // All done.
             [None, ..] => None,
@@ -474,7 +474,7 @@ impl<'a> Lexer<'a> {
     ) -> Option<Spanned> {
         loop {
             if matches!(self.window, [None, ..]) {
-                return self.emit_error(LexerError::UnclosedString);
+                return self.emit_error(LexicalError::UnclosedString);
             }
             // Advance the lexer until it is sitting on a `"` that can start the closing delimiter.
             if escapes {
@@ -501,7 +501,7 @@ impl<'a> Lexer<'a> {
             } else if seen_quotes < quotes || seen_hashes < hashes {
                 continue;
             } else {
-                self.emit_error(LexerError::StringEnd)
+                self.emit_error(LexicalError::StringEnd)
             };
         }
     }
@@ -690,8 +690,8 @@ mod tests {
     fn emit_error() {
         lexer!(mut lexer <- "aBc def");
         lexer.advance_by(3);
-        let error = lexer.emit_error(LexerError::Ident).unwrap().unwrap_err();
-        assert_eq!(error, (0, LexerError::Ident, 3));
+        let error = lexer.emit_error(LexicalError::Ident).unwrap().unwrap_err();
+        assert_eq!(error, (0, LexicalError::Ident, 3));
     }
 
     #[test]
@@ -724,12 +724,12 @@ mod tests {
             )))
         );
         // Invalid.
-        scan!(" #!x\na", Some(Err((1, LexerError::Char, 2))));
+        scan!(" #!x\na", Some(Err((1, LexicalError::Char, 2))));
         scan!(
             "\u{feff} #!x\na",
             Some(Err((
                 BOM.len_utf8() + 1,
-                LexerError::Char,
+                LexicalError::Char,
                 BOM.len_utf8() + 2
             )))
         );
@@ -764,9 +764,9 @@ mod tests {
         scan!("/*x///x*/", ok: Token::BlockComment);
         scan!("/*x//x*/", ok: Token::BlockComment);
         // Invalid.
-        scan!("/*x", err: LexerError::UnclosedBlockComment);
-        scan!("/*x/*x", err: LexerError::UnclosedBlockComment);
-        scan!("/*x/*x*/", err: LexerError::UnclosedBlockComment);
+        scan!("/*x", err: LexicalError::UnclosedBlockComment);
+        scan!("/*x/*x", err: LexicalError::UnclosedBlockComment);
+        scan!("/*x/*x*/", err: LexicalError::UnclosedBlockComment);
     }
 
     #[test]
@@ -813,14 +813,14 @@ mod tests {
         scan!("0b0_", ok: Token::BinInt);
         scan!("0b0__", ok: Token::BinInt);
         // Errors.
-        scan!("0B01", err: LexerError::BaseMarker);
-        scan!("0b_", err: LexerError::Number);
-        scan!("0b_0", err: LexerError::Number);
-        scan!("0b1010a", err: LexerError::Number);
-        scan!("0b10a10", err: LexerError::Number);
-        scan!("0b10210", err: LexerError::Number);
-        scan!("_0b1", err: LexerError::Ident);
-        scan!("0_b1", err: LexerError::Number);
+        scan!("0B01", err: LexicalError::BaseMarker);
+        scan!("0b_", err: LexicalError::Number);
+        scan!("0b_0", err: LexicalError::Number);
+        scan!("0b1010a", err: LexicalError::Number);
+        scan!("0b10a10", err: LexicalError::Number);
+        scan!("0b10210", err: LexicalError::Number);
+        scan!("_0b1", err: LexicalError::Ident);
+        scan!("0_b1", err: LexicalError::Number);
     }
 
     #[test]
@@ -832,14 +832,14 @@ mod tests {
         scan!("0o1_", ok: Token::OctInt);
         scan!("0o1__", ok: Token::OctInt);
         // Errors.
-        scan!("0O123", err: LexerError::BaseMarker);
-        scan!("0o_", err: LexerError::Number);
-        scan!("0o_0", err: LexerError::Number);
-        scan!("0o1234x", err: LexerError::Number);
-        scan!("0o12x34", err: LexerError::Number);
-        scan!("0o12834", err: LexerError::Number);
-        scan!("_0o1", err: LexerError::Ident);
-        scan!("0_o1", err: LexerError::Number);
+        scan!("0O123", err: LexicalError::BaseMarker);
+        scan!("0o_", err: LexicalError::Number);
+        scan!("0o_0", err: LexicalError::Number);
+        scan!("0o1234x", err: LexicalError::Number);
+        scan!("0o12x34", err: LexicalError::Number);
+        scan!("0o12834", err: LexicalError::Number);
+        scan!("_0o1", err: LexicalError::Ident);
+        scan!("0_o1", err: LexicalError::Number);
     }
 
     #[test]
@@ -851,14 +851,14 @@ mod tests {
         scan!("0x1_", ok: Token::HexInt);
         scan!("0x1__", ok: Token::HexInt);
         // Errors.
-        scan!("0X123", err: LexerError::BaseMarker);
-        scan!("0x_", err: LexerError::Number);
-        scan!("0x_0", err: LexerError::Number);
-        scan!("0x1234z", err: LexerError::Number);
-        scan!("0x12z34", err: LexerError::Number);
-        scan!("0x12g34", err: LexerError::Number);
-        scan!("_0x1", err: LexerError::Ident);
-        scan!("0_x1", err: LexerError::Number);
+        scan!("0X123", err: LexicalError::BaseMarker);
+        scan!("0x_", err: LexicalError::Number);
+        scan!("0x_0", err: LexicalError::Number);
+        scan!("0x1234z", err: LexicalError::Number);
+        scan!("0x12z34", err: LexicalError::Number);
+        scan!("0x12g34", err: LexicalError::Number);
+        scan!("_0x1", err: LexicalError::Ident);
+        scan!("0_x1", err: LexicalError::Number);
     }
 
     #[test]
@@ -871,8 +871,8 @@ mod tests {
         scan!("6_", ok: Token::DecInt);
         scan!("7__", ok: Token::DecInt);
         // Errors.
-        scan!("_1", err: LexerError::Ident);
-        scan!("1a", err: LexerError::Number);
+        scan!("_1", err: LexicalError::Ident);
+        scan!("1a", err: LexicalError::Number);
     }
 
     #[test]
@@ -892,12 +892,12 @@ mod tests {
         // Valid with fractions and exponents.
         scan!("1__23.4_5__e-5_6_7", ok: Token::Float);
         // Invalid.
-        scan!("1e_3", err: LexerError::Number);
-        scan!("1e-_3", err: LexerError::Number);
-        scan!("1e_+3", err: LexerError::Number);
-        scan!("1E3", err: LexerError::Number);
-        scan!("1.0a", err: LexerError::Number);
-        scan!("1.0e3b5", err: LexerError::Number);
+        scan!("1e_3", err: LexicalError::Number);
+        scan!("1e-_3", err: LexicalError::Number);
+        scan!("1e_+3", err: LexicalError::Number);
+        scan!("1E3", err: LexicalError::Number);
+        scan!("1.0a", err: LexicalError::Number);
+        scan!("1.0e3b5", err: LexicalError::Number);
     }
 
     #[test]
@@ -911,11 +911,11 @@ mod tests {
         scan!(r#"""" escaped quote \"""""#, ok: Token::BlockString);
         scan!(r#"""" escaped quote \""" """"#, ok: Token::BlockString);
         // Invalid.
-        scan!(r#""""unclosed"#, err: LexerError::UnclosedString);
-        scan!(r#""""unclosed""#, err: LexerError::UnclosedString);
-        scan!(r#""""unclosed"""#, err: LexerError::UnclosedString);
-        scan!(r#""""unclosed\""""#, err: LexerError::UnclosedString);
-        scan!(r#""""extra closing"""""#, err: LexerError::StringEnd);
+        scan!(r#""""unclosed"#, err: LexicalError::UnclosedString);
+        scan!(r#""""unclosed""#, err: LexicalError::UnclosedString);
+        scan!(r#""""unclosed"""#, err: LexicalError::UnclosedString);
+        scan!(r#""""unclosed\""""#, err: LexicalError::UnclosedString);
+        scan!(r#""""extra closing"""""#, err: LexicalError::StringEnd);
     }
 
     #[test]
@@ -930,9 +930,9 @@ mod tests {
         scan!(r#""escaped slash\\""#, ok: Token::String);
         scan!("\"abc\ndef\"", ok: Token::String);
         // Invalid.
-        scan!(r#""unclosed"#, err: LexerError::UnclosedString);
-        scan!(r#""unclosed\""#, err: LexerError::UnclosedString);
-        scan!(r#""extra closing"""#, err: LexerError::StringEnd);
+        scan!(r#""unclosed"#, err: LexicalError::UnclosedString);
+        scan!(r#""unclosed\""#, err: LexicalError::UnclosedString);
+        scan!(r#""extra closing"""#, err: LexicalError::StringEnd);
     }
 
     #[test]
@@ -947,10 +947,10 @@ mod tests {
         scan!(r###"r"\\""###, ok: Token::RawString);
         scan!("r\"abc\ndef\"", ok: Token::RawString);
         // Invalid.
-        scan!(r###"r""###, err: LexerError::UnclosedString);
-        scan!(r###"r#"""###, err: LexerError::UnclosedString);
-        scan!(r###"r##a"###, err: LexerError::StringStart);
-        scan!(r###"r#""##"###, err: LexerError::StringEnd);
+        scan!(r###"r""###, err: LexicalError::UnclosedString);
+        scan!(r###"r#"""###, err: LexicalError::UnclosedString);
+        scan!(r###"r##a"###, err: LexicalError::StringStart);
+        scan!(r###"r#""##"###, err: LexicalError::StringEnd);
     }
 
     #[test]
@@ -979,9 +979,9 @@ mod tests {
         // Valid.
         scan!("_", ok: Token::Underscore);
         // Invalid.
-        scan!("__", err: LexerError::Ident);
-        scan!("_1", err: LexerError::Ident);
-        scan!("_ä", err: LexerError::Ident);
+        scan!("__", err: LexicalError::Ident);
+        scan!("_1", err: LexicalError::Ident);
+        scan!("_ä", err: LexicalError::Ident);
     }
 
     #[test]
@@ -992,9 +992,9 @@ mod tests {
         scan!("z_0123456789", ok: Token::LowerIdent);
         scan!("__g_4", ok: Token::LowerIdent);
         // Invalid.
-        scan!("xA", err: LexerError::Ident);
-        scan!("yöw", err: LexerError::Ident);
-        scan!("a#b", err: LexerError::Ident);
+        scan!("xA", err: LexicalError::Ident);
+        scan!("yöw", err: LexicalError::Ident);
+        scan!("a#b", err: LexicalError::Ident);
     }
 
     #[test]
@@ -1006,9 +1006,9 @@ mod tests {
         scan!("r#__g_4", ok: Token::RawLowerIdent);
         scan!("r#match", ok: Token::RawLowerIdent);
         // Invalid.
-        scan!("r#xA", err: LexerError::Ident);
-        scan!("r#yöw", err: LexerError::Ident);
-        scan!("r#a#b", err: LexerError::Ident);
+        scan!("r#xA", err: LexicalError::Ident);
+        scan!("r#yöw", err: LexicalError::Ident);
+        scan!("r#a#b", err: LexicalError::Ident);
     }
 
     #[test]
@@ -1020,7 +1020,7 @@ mod tests {
         scan!("Q_0123456789", ok: Token::UpperIdent);
         scan!("__B_p", ok: Token::UpperIdent);
         // Invalid.
-        scan!("BÉj", err: LexerError::Ident);
+        scan!("BÉj", err: LexicalError::Ident);
     }
 
     #[test]
@@ -1032,15 +1032,15 @@ mod tests {
         scan!("r#Q_0123456789", ok: Token::RawUpperIdent);
         scan!("r#__B_p", ok: Token::RawUpperIdent);
         // Invalid.
-        scan!("r#BÉj", err: LexerError::Ident);
-        scan!("r#A#B", err: LexerError::Ident);
+        scan!("r#BÉj", err: LexicalError::Ident);
+        scan!("r#A#B", err: LexicalError::Ident);
     }
 
     #[test]
     fn scan_illegal_char() {
         // There are lots of illegal chars but only 2 are tested.
-        scan!("$", err: LexerError::Char);
-        scan!("ä", err: LexerError::Char);
+        scan!("$", err: LexicalError::Char);
+        scan!("ä", err: LexicalError::Char);
     }
 
     #[test]
