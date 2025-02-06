@@ -380,19 +380,6 @@ impl<'a> Lexer<'a> {
                 self.advance(); // Consume `"`.
                 self.scan_string(Token::String, 1, 0, true)
             }
-            [Some('b'), Some('"'), ..] => {
-                self.advance_by(2); // Consume `b"`.
-                self.scan_string(Token::ByteString, 1, 0, true)
-            }
-            [Some('b'), Some('r'), Some('#' | '"'), ..] => {
-                self.advance_by(2); // Consume `br`.
-                let hashes = self.advance_while(pat!('#'));
-                if !self.advance_if(pat!('"')) {
-                    self.advance_until(char::is_whitespace); // Consume sensible rest of token.
-                    return self.emit_error(LexerError::StringStart);
-                }
-                self.scan_string(Token::RawByteString, 1, hashes, false)
-            }
             [Some('r'), Some('"'), ..] | [Some('r'), Some('#'), Some('#' | '"'), ..] => {
                 self.advance(); // Consume `r`.
                 let hashes = self.advance_while(pat!('#'));
@@ -946,43 +933,6 @@ mod tests {
         scan!(r#""unclosed"#, err: LexerError::UnclosedString);
         scan!(r#""unclosed\""#, err: LexerError::UnclosedString);
         scan!(r#""extra closing"""#, err: LexerError::StringEnd);
-    }
-
-    #[test]
-    fn scan_byte_string() {
-        // Most of these are covered by scan_string(), as it uses the same implementation and has
-        // similar opening and closing quotes rules.
-        // Valid.
-        scan!(r#"b"""#, ok: Token::ByteString);
-        scan!(r#"b"abc""#, ok: Token::ByteString);
-        scan!(r#"b"ㄩ几丨匚ㄖᗪ乇""#, ok: Token::ByteString);
-        scan!(r#"b"A\nB\r\nC""#, ok: Token::ByteString);
-        scan!(r#"b"escaped \" quote""#, ok: Token::ByteString);
-        scan!(r#"b"escaped quote\"""#, ok: Token::ByteString);
-        scan!(r#"b"escaped slash\\""#, ok: Token::ByteString);
-        scan!("b\"abc\ndef\"", ok: Token::ByteString);
-        // Invalid.
-        scan!(r#"b"unclosed"#, err: LexerError::UnclosedString);
-        scan!(r#"b"unclosed\""#, err: LexerError::UnclosedString);
-        scan!(r#"b"extra closing"""#, err: LexerError::StringEnd);
-    }
-
-    #[test]
-    fn scan_raw_byte_string() {
-        // Valid.
-        scan!(r###"br"""###, ok: Token::RawByteString);
-        scan!(r###"br#""#"###, ok: Token::RawByteString);
-        scan!(r###"br##""##"###, ok: Token::RawByteString);
-        scan!(r###"br#""""""#"###, ok: Token::RawByteString);
-        scan!(r###"br##""#"#"##"###, ok: Token::RawByteString);
-        scan!(r###"br"\""###, ok: Token::RawByteString);
-        scan!(r###"br"\\""###, ok: Token::RawByteString);
-        scan!("br\"abc\ndef\"", ok: Token::RawByteString);
-        // Invalid.
-        scan!(r###"br""###, err: LexerError::UnclosedString);
-        scan!(r###"br#"""###, err: LexerError::UnclosedString);
-        scan!(r###"br#a"###, err: LexerError::StringStart);
-        scan!(r###"br#""##"###, err: LexerError::StringEnd);
     }
 
     #[test]

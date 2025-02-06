@@ -78,18 +78,10 @@ pub enum Token {
     ///
     /// The content is not checked for validity.
     BlockString,
-    /// A literal `b"..."` byte string including the leading `b"` and trailing `"`.
-    ///
-    /// The content is not checked for validity.
-    ByteString,
     /// A literal `r#"..."#` raw string including the leading `r#"` and trailing `"#`.
     ///
     /// The content is not checked for validity.
     RawString,
-    /// A literal `br#"..."#` raw byte string including the leading `br#"` and trailing `"#`.
-    ///
-    /// The content is not checked for validity.
-    RawByteString,
     /// `{`.
     LeftBrace,
     /// `[`.
