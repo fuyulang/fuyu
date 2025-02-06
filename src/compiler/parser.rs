@@ -25,18 +25,38 @@ pub struct Parsed<'a> {
     ast: ModuleAst,
 }
 
+/// TODO: Docs
+fn is_commment(kind: Token) -> bool {
+    matches!(
+        kind,
+        Token::BlockComment | Token::LineComment | Token::DocComment | Token::ShebangComment
+    )
+}
+
 impl<'a> Parsed<'a> {
     /// TODO: Docs.
     pub fn new(
         text: &'a Text,
     ) -> Result<Self, ParseError<ByteIdx, Token, (ByteIdx, LexerError, ByteIdx)>> {
-        // TODO: Handle comments separately so the parser does not need to deal with them.
         let lexer = Lexer::new(text);
         let parser = ModuleParser::new();
         let state = State {
             text: text.as_str(),
         };
-        let ast = parser.parse(&state, lexer)?;
+        // Build a lexer that skips over the comments and extracts them. The `comments` vector
+        // contains the comments in the order they were encountered in the source.
+        let mut comments = vec![];
+        let lexer_no_comments = lexer.filter(|spanned| match spanned {
+            Ok(token @ (_, kind, _)) if is_commment(kind.clone()) => {
+                comments.push(token.clone());
+                false
+            }
+            _ => true,
+        });
+        // Do the parse.
+        let ast = parser.parse(&state, lexer_no_comments)?;
+        // Add the comments back.
+        // TODO: Put the comments into the AST.
         Ok(Self { text, ast })
     }
 }

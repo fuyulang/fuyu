@@ -2,7 +2,9 @@
 
 // TODO: Add `Option<Type>` into each node.
 // TODO: Rename type_ to something. (typ? ty?)
+// TODO: Rename use_ to something (it appears in the grammar).
 
+use ecow::EcoString; // TODO: use EcoVec too? The structs will be smaller, especialy for comments.
 use num_bigint::BigInt;
 
 use super::text::ByteIdx;
@@ -20,6 +22,8 @@ pub struct Span {
 /// TODO: Docs.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModuleAst {
+    /// The shebang comment at the top of the source file, including the leading `#!`.
+    shebang_comment: Option<EcoString>,
     // TODO: Better fields (should this have separate import, export, let, fn, type, use, and provide lists?).
     nodes: Vec<Expr>,
 }
@@ -29,7 +33,6 @@ pub struct ModuleAst {
 /// The macro is useful since the same documentation is repeated several times.
 macro_rules! doc {
     // Comments.
-    // TODO: Make this more specific?
     (comment) => {
         "Comments that belong to the node.\n"
     };
@@ -69,6 +72,7 @@ macro_rules! doc {
 
 /// An expression that can appear in the source.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Expr {
     /// An integer literal.
     Int {
@@ -95,7 +99,7 @@ pub enum Expr {
         #[doc = doc!(span: "string"; including: r#"leading `"`, `"""`, or `r#"`"#, r#"trailing `"` or `"""`"#)]
         span: Span,
         #[doc = doc!(literal: "string")]
-        value: String,
+        value: EcoString,
         #[doc = doc!(comment)]
         comments: Option<Comments>,
     },
@@ -130,19 +134,11 @@ pub enum Expr {
         comments: Option<Comments>,
     },
 
+    // TODO: Make this `Name(Name)`?
     /// The name of a binding.
     Name {
-        #[doc = doc!(span: "name"; including: "namespace", "`::`", "name")]
-        span: Span,
-        /// The namespace of the name.
-        namespace: Option<Namespace>,
-        #[doc = doc!(index: "name (which differs from `span.start` when a namespace is present)")]
-        name_idx: ByteIdx,
-        /// The kind of the name.
-        kind: NameKind,
-        // TODO: Add the name as a string?
-        #[doc = doc!(comment)]
-        comments: Option<Comments>,
+        /// TODO Docs:
+        name: Name,
     },
 
     /// The `immediate` keyword.
@@ -158,7 +154,7 @@ pub enum Expr {
         #[doc = doc!(span: "function"; including: "leading `fn`", "trailing `}` of the body")]
         span: Span,
         // TODO: Add name_span.
-        name: Option<String>,
+        name: Option<EcoString>,
         #[doc = doc!(span: "arguments"; including: "`(`", "`)`")]
         args_span: Span,
         /// Arguments to the function.
@@ -367,14 +363,50 @@ pub enum Expr {
     },
 }
 
-/// TODO Docs.
+/// Comments that can appear in the source.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive] // TODO: is this needed?
 pub struct Comments {
-    // TODO: Add fields.
+    /// Comments that appear before the node.
+    before: Vec<Comment>,
+    /// Comments that appear after the node.
+    after: Vec<Comment>,
+}
+
+/// A comment that is attached to a node.
+///
+/// This does not include shebang comments, because those can only appear at the start of the text.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub enum Comment {
+    /// A block comment (with nested comments).
+    Block {
+        #[doc = doc!(span: "block comment"; including: "`/*`", "*/")]
+        span: Span,
+        /// The comment text including `/*` and `*/`.
+        value: EcoString,
+    },
+
+    /// A line comment.
+    Line {
+        #[doc = doc!(span: "line comment"; including: "`//")]
+        span: Span,
+        /// The comment text including `//`.
+        value: EcoString,
+    },
+
+    /// A documentation comment.
+    Doc {
+        #[doc = doc!(span: "documentation comment"; including: "`///")]
+        span: Span,
+        /// The comment text including `///`.
+        value: EcoString,
+    },
 }
 
 /// The kind of a name depending on its casing and charaacters.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum NameKind {
     /// A lower case name.
     Lower,
@@ -384,8 +416,41 @@ pub enum NameKind {
     Discard,
 }
 
+/// TODO: Docs.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct Name {
+    #[doc = doc!(span: "name"; including: "namespace", "`::`", "name")]
+    pub span: Span,
+    /// The namespace of the name.
+    pub namespace: Option<Namespace>,
+    #[doc = doc!(index: "name (which differs from `span.start` when a namespace is present)")]
+    pub name_idx: ByteIdx,
+    /// The kind of the name.
+    pub kind: NameKind,
+    /// The value of the name.
+    pub name: EcoString,
+    #[doc = doc!(comment)]
+    pub comments: Option<Comments>,
+}
+
+/// A namespace prefix.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct Namespace {
+    #[doc = doc!(span: "namespace"; including: "namespace", "`::`")]
+    pub span: Span,
+    /// The value of the namespace.
+    // pub name: EcoString, // TODO: Use this.
+    // TODO: Remove the `sep_idx` since it can be computed from the span.
+    #[doc = doc!(index: "`::`")]
+    pub sep_idx: ByteIdx,
+    // TODO: Does this need comments?
+}
+
 /// A binary infix operator.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum InfixOp {
     /// `&&`.
     AmpAmp,
@@ -425,6 +490,7 @@ pub enum InfixOp {
 
 /// A unary prefix operator.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum PrefixOp {
     /// `!`.
     Bang,
@@ -432,24 +498,17 @@ pub enum PrefixOp {
     Minus,
 }
 
-/// A namespace prefix.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Namespace {
-    #[doc = doc!(span: "namespace"; including: "namespace", "`::`")]
-    pub span: Span,
-    // TODO: add the namespace as a string.
-    #[doc = doc!(index: "`::`")]
-    pub sep_idx: ByteIdx,
-}
-
 /// An argument in a function declaration.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct FunctionArg {
     #[doc = doc!(span: "function declaration argument"; including: "name", "pattern", "type")]
     pub span: Span,
-    // TODO: Add use keyword.
+    // TODO: The use will always be on the start. Maybe this should just be a bool?
+    #[doc = doc!(index: "`use`")]
+    pub use_idx: Option<ByteIdx>,
     /// The argument name.
-    pub name: Option<Expr>, // TODO: String?
+    pub name: Option<Name>,
     /// The argument patter (which is the main part of the argument).
     pub pattern: Expr,
     /// The type of the argument.
@@ -460,6 +519,7 @@ pub struct FunctionArg {
 
 /// The type of an argument in a function declaration.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct FunctionArgTypeAnnotation {
     #[doc = doc!(span: "function argument type annotation"; including: "`:`", "type")]
     pub span: Span,
@@ -471,6 +531,7 @@ pub struct FunctionArgTypeAnnotation {
 
 /// The return type annotation of a function declaration.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct FunctionReturnAnnotation {
     #[doc = doc!(span: "function return type"; including: "`->`", "type")]
     pub span: Span,
@@ -482,32 +543,54 @@ pub struct FunctionReturnAnnotation {
 
 /// An argument to a function call.
 #[derive(Clone, Debug, PartialEq)]
-pub struct CallArg {
-    #[doc = doc!(span: "function call argument"; including: "name", "value")]
-    pub span: Span,
-    // TODO: Add use keyword.
-    /// The name of the argument.
-    pub name: Option<CallArgName>,
-    /// The value of the argument.
-    pub expr: Expr,
-    #[doc = doc!(comment)]
-    pub comments: Option<Comments>,
-}
+#[non_exhaustive]
+pub enum CallArg {
+    /// A function argument that is just an expression (e.g., `f(1 + 2)`).
+    Value {
+        #[doc = doc!(span: "function call argument with value"; including: "`use`")]
+        span: Span,
+        #[doc = doc!(index: "`use`")]
+        use_idx: Option<ByteIdx>,
+        /// The argument value.
+        expr: Expr,
+        #[doc = doc!(comment)]
+        comments: Option<Comments>,
+    },
 
-// TODO: Merge with CallArg as the tuple (ByteIdx, String)?
-/// The name of an argument in a function call.
-#[derive(Clone, Debug, PartialEq)]
-pub struct CallArgName {
-    #[doc = doc!(span: "function call argument name"; including: "name", "`:`")]
-    pub span: Span, // TODO: Currently the colon is at the last index.
-    /// The name.
-    pub name: Expr, // TODO: String?
-    #[doc = doc!(comment)]
-    pub comments: Option<Comments>,
+    /// A function argument that is just a name (e.g., `f(x:)`).
+    Name {
+        #[doc = doc!(span: "function call argument with name"; including: "`use`")]
+        span: Span,
+        #[doc = doc!(index: "`use`")]
+        use_idx: Option<ByteIdx>,
+        /// The name of the argument.
+        name: Name,
+        #[doc = doc!(index: "`:`")]
+        colon_idx: ByteIdx,
+        #[doc = doc!(comment)]
+        comments: Option<Comments>,
+    },
+
+    /// A function argument that is a name and expression (e.g., `f(x: 1 + 2)`).
+    NameValue {
+        #[doc = doc!(span: "function call argument with name and value"; including: "`use`")]
+        span: Span,
+        #[doc = doc!(index: "`use`")]
+        use_idx: Option<ByteIdx>,
+        /// The name of the argument.
+        name: Name,
+        #[doc = doc!(index: "`:`")]
+        colon_idx: ByteIdx,
+        /// The argument value.
+        expr: Expr,
+        #[doc = doc!(comment)]
+        comments: Option<Comments>,
+    },
 }
 
 /// A clause in the body of an if expression.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct IfClause {
     #[doc = doc!(span: "if clause"; including: "pattern", "`=>`", "body")]
     pub span: Span,
@@ -523,6 +606,7 @@ pub struct IfClause {
 
 /// A clause in the body of a match expression.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct MatchClause {
     #[doc = doc!(span: "match clause"; including: "pattern", "`=>`", "body")]
     pub span: Span,
@@ -540,6 +624,7 @@ pub struct MatchClause {
 
 /// A clause in the body of a match expression.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct MatchGuard {
     #[doc = doc!(span: "match clause"; including: "`if`", "condition")]
     pub span: Span,
