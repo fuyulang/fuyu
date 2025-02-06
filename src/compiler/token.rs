@@ -28,6 +28,8 @@ pub enum Token {
     Underscore,
     /// The `as` keyword.
     KwAs,
+    /// The `const` keyword.
+    KwConst,
     /// The `export` keyword.
     KwExport,
     /// The `fn` keyword.
