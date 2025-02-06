@@ -201,47 +201,58 @@ BareUpperSpan: Span = {
 };
 
 /// A bare lower name (e.g., `x`).
-BareLower: ast::Expr = <name:BareLowerSpan> => ast::Expr::Name {
+BareLowerName: ast::Name = <name:BareLowerSpan> => ast::Name {
     span: name.clone(),
     namespace: None,
     name_idx: name.start,
+    name: todo!("Extract from source text"),
     kind: ast::NameKind::Lower,
     comments: None,
 };
 
 /// A bare upper name (e.g., `X`).
-BareUpper: ast::Expr = <name:BareUpperSpan> => ast::Expr::Name {
+BareUpperName: ast::Name = <name:BareUpperSpan> => ast::Name {
     span: name.clone(),
     namespace: None,
     name_idx: name.start,
+    name: todo!("Extract from source text"),
     kind: ast::NameKind::Upper,
     comments: None,
 };
 
-/// TODO: Docs.
+/// A name of a binding.
 Name: ast::Expr = {
-    BareLower,
-    BareUpper,
-    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareLowerSpan> => ast::Expr::Name {
-        span: Span { start: namespace_span.start, end: name_span.end },
-        namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
-        name_idx: name_span.start,
-        kind: ast::NameKind::Lower,
-        comments: None,
+    <name:BareLowerName> => ast::Expr::Name { name },
+    <name:BareUpperName> => ast::Expr::Name { name },
+    <namespace_span:BareLowerSpan> <sep_idx:@L> "::" <name_span:BareLowerSpan> => ast::Expr::Name {
+        name: ast::Name {
+            span: Span { start: namespace_span.start, end: name_span.end },
+            namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
+            name_idx: name_span.start,
+            name: todo!("Extract from source text"),
+            kind: ast::NameKind::Lower,
+            comments: None,
+        },
     },
-    <namespace_span:BareLowerSpan> <sep_idx:@L> <name_span:BareUpperSpan> => ast::Expr::Name {
-        span: Span { start: namespace_span.start, end: name_span.end },
-        namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
-        name_idx: name_span.start,
-        kind: ast::NameKind::Upper,
-        comments: None,
+    <namespace_span:BareLowerSpan> <sep_idx:@L> "::" <name_span:BareUpperSpan> => ast::Expr::Name {
+        name: ast::Name {
+            span: Span { start: namespace_span.start, end: name_span.end },
+            namespace: Some(ast::Namespace { span: namespace_span, sep_idx }),
+            name_idx: name_span.start,
+            name: todo!("Extract from source text"),
+            kind: ast::NameKind::Upper,
+            comments: None,
+        },
     },
     <start:@L> UNDERSCORE <end:@R> => ast::Expr::Name {
-        span: Span { start, end },
-        namespace: None,
-        name_idx: start,
-        kind: ast::NameKind::Discard,
-        comments: None,
+        name: ast::Name {
+            span: Span { start, end },
+            namespace: None,
+            name_idx: start,
+            name: todo!("Extract from source text"),
+            kind: ast::NameKind::Discard,
+            comments: None,
+        },
     },
 }
 
@@ -257,25 +268,27 @@ Immediate: ast::Expr = <start:@L> IMMEDIATE <end:@R> => ast::Expr::Immediate {
 
 /// Argument in a function declaration.
 FunctionArg: ast::FunctionArg = {
-    <start:@L> <name:BareLower?> <pattern:Pattern> <end:@R> => ast::FunctionArg {
+    <start:@L> <use_:USE?> <name:BareLowerName?> <pattern:Pattern> <end:@R> => ast::FunctionArg {
         span: Span { start, end },
+        use_idx: use_.and(Some(start)),
         name,
         pattern,
         type_annotation: None,
         comments: None,
     },
-    <start:@L> <name:BareLower?> <pattern:Pattern> <colon_idx:@L> ":" <type_:Type> <end:@R> => {
-        ast::FunctionArg {
-            span: Span { start, end },
-            name,
-            pattern,
-            type_annotation: Some(ast::FunctionArgTypeAnnotation {
-                span: Span { start: colon_idx, end: type_.span().end },
-                type_,
-                comments: None,
-            }),
+    <start:@L>
+    <use_:USE?> <name:BareLowerName?> <pattern:Pattern> <colon_idx:@L> ":" <type_:Type>
+    <end:@R> => ast::FunctionArg {
+        span: Span { start, end },
+        use_idx: use_.and(Some(start)),
+        name,
+        pattern,
+        type_annotation: Some(ast::FunctionArgTypeAnnotation {
+            span: Span { start: colon_idx, end: type_.span().end },
+            type_,
             comments: None,
-        }
+        }),
+        comments: None,
     },
 }
 
@@ -308,12 +321,31 @@ FunctionReturnType: (Span, ast::Expr) = UNDERSCORE => todo!();
 
 /// An argument to a function call.
 CallArg: ast::CallArg = {
-    <expr:Expr> => ast::CallArg { span: expr.span(), name: None, expr, comments: None },
-    <start:@L> <name:BareLowerSpan> <colon_idx:@L> ":" <expr:Expr> <end:@R> => ast::CallArg {
-        span: expr.span(),
-        name: todo!(),
+    // Form example: `f(1 + 2)`.
+    <start:@L> <use_:USE?> <expr:Expr> <end:@R> => ast::CallArg::Value {
+        span: Span { start, end },
+        use_idx: use_.and(Some(start)),
         expr,
-        comments: None,
+        comments: None
+    },
+    // Form example: `f(x:)`.
+    <start:@L> <use_:USE?> <name:BareLowerName> <colon_idx:@L> ":" <end:@R> => ast::CallArg::Name {
+        span: Span { start, end },
+        use_idx: use_.and(Some(start)),
+        name,
+        colon_idx,
+        comments: None
+    },
+    // Form example: `f(x: 1 + 2)`.
+    <start:@L> <use_:USE?> <name:BareLowerName> <colon_idx:@L> ":" <expr:Expr> <end:@R> => {
+        ast::CallArg::NameValue {
+            span: Span { start, end },
+            use_idx: use_.and(Some(start)),
+            name,
+            colon_idx,
+            expr,
+            comments: None
+        }
     },
 };
 
