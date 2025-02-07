@@ -104,16 +104,6 @@ pub enum Expr {
         comments: Option<Comments>,
     },
 
-    /// A byte string literal.
-    ByteString {
-        #[doc = doc!(span: "byte string"; including: r#"leading `b"` or `br#"`"#, r#"trailing `"`"#)]
-        span: Span,
-        #[doc = doc!(literal: "byte string")]
-        value: Vec<u8>,
-        #[doc = doc!(comment)]
-        comments: Option<Comments>,
-    },
-
     /// A tuple.
     Tuple {
         #[doc = doc!(span: "tuple"; including: "`(`", "`)`")]
@@ -337,6 +327,18 @@ pub enum Expr {
         #[doc = doc!(
             span: "let binding";
             including: "leading `export` or `let`", "trailing expression",
+        )]
+        span: Span,
+        // TODO: Add fields.
+        #[doc = doc!(comment)]
+        comments: Option<Comments>,
+    },
+
+    /// A const expression.
+    Let {
+        #[doc = doc!(
+            span: "const binding";
+            including: "leading `export` or `const`", "trailing expression",
         )]
         span: Span,
         // TODO: Add fields.

@@ -5,7 +5,7 @@ use lalrpop_util::{lalrpop_mod, ParseError};
 lalrpop_mod!(grammar, "/compiler/grammar.rs");
 
 use super::ast::ModuleAst;
-use super::lexer::{Lexer, LexerError};
+use super::lexer::{Lexer, LexicalError};
 use super::text::{ByteIdx, Text};
 use super::token::Token;
 use grammar::ModuleParser;
@@ -37,7 +37,7 @@ impl<'a> Parsed<'a> {
     /// TODO: Docs.
     pub fn new(
         text: &'a Text,
-    ) -> Result<Self, ParseError<ByteIdx, Token, (ByteIdx, LexerError, ByteIdx)>> {
+    ) -> Result<Self, ParseError<ByteIdx, Token, (ByteIdx, LexicalError, ByteIdx)>> {
         let lexer = Lexer::new(text);
         let parser = ModuleParser::new();
         let state = State {
