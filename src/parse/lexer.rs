@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use super::{ByteIdx, Text, Token};
+use crate::parse::{ByteIdx, Text, Token};
 use std::iter;
 use std::str::Chars;
 
