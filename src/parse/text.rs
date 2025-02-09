@@ -1,12 +1,27 @@
 // SPDX-License-Identifier: MPL-2.0
 
-/// A `ByteIdx` is an index into a [`Text`].
+//! The text is a representation of Fuyu source code.
+//!
+//! [`Text`] is optimized for quick look ups of line and column position based on a [`ByteIdx`].
+
+/// An index into a [`Text`] aligned at the byte level.
+///
+/// Byte indices are used rather than `char` indices for performance.
 pub type ByteIdx = usize;
 
-/// The text of an expression with a line table.
+/// A span in the source text.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Span {
+    /// Inclusive start index.
+    pub start: ByteIdx,
+    /// Exclusive end index.
+    pub end: ByteIdx,
+}
+
+/// The text of an expression.
 ///
-/// The text includes the construction of a [`LineTable`] that is used to efficiently
-/// convert a byte index into the text into a line and column number pair.
+/// The text includes a data structure that is used to efficiently convert a byte index into the
+/// text into a line and column number pair.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Text {
     /// The source text.
@@ -74,7 +89,7 @@ impl Text {
 /// lookups of line and column numbers with a worst case complexity of _O(log(n) + m)_ where _n_ is
 /// the number lines and _m_ is the length of the longest line.
 #[derive(Debug, Eq, PartialEq)]
-pub struct LineTable {
+struct LineTable {
     /// The indices for the first character of each line of the source. This is guaranteed to be in
     /// increasing order.
     indices: Vec<ByteIdx>,
