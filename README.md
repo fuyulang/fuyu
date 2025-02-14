@@ -9,6 +9,15 @@
 
 Fuyu is a concurrent functional programming language.
 
+> [!IMPORTANT]
+> The compiler is being
+> [bootstrapped](https://en.wikipedia.org/wiki/Bootstrapping_(compilers))
+> in Rust so that it can be
+> [self-hosted](https://en.wikipedia.org/wiki/Self-hosting_(compilers))
+> in Fuyu.
+>
+> This means that the compiler is under development and is not ready for use.
+
 ## Contributing
 
 Get started in the [discussions](https://github.com/orgs/fuyulang/discussions)
