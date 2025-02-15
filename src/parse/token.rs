@@ -5,11 +5,6 @@
 /// This value is often called the token "kind" throughout this project.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Token {
-    /// A block comment delimited by `/*` and `*/`.
-    ///
-    /// Nested block comments are not created as separate tokens. For example, `/*x/*x*/x*/` is
-    /// lexed as a single token.
-    BlockComment,
     /// A line comment started with `//`.
     LineComment,
     /// A documentation comment started with `///`.
@@ -30,8 +25,8 @@ pub enum Token {
     KwAs,
     /// The `const` keyword.
     KwConst,
-    /// The `export` keyword.
-    KwExport,
+    /// The `extern` keyword.
+    KwExtern,
     /// The `fn` keyword.
     KwFn,
     /// The `if` keyword.
@@ -44,10 +39,10 @@ pub enum Token {
     KwLet,
     /// The `match` keyword.
     KwMatch,
-    /// The `nonexhaustive` keyword.
-    KwNonexhaustive,
     /// The `provide` keyword.
     KwProvide,
+    /// The `pub` keyword.
+    KwPub,
     /// The `return` keyword.
     KwReturn,
     /// The `self` keyword.

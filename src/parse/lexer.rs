@@ -45,9 +45,6 @@ pub enum LexicalError {
     /// A character that cannot start a token.
     Char,
 
-    /// A block comment missing one (or more) closing `*/`.
-    UnclosedBlockComment,
-
     /// A raw string where the opening `"` was not seen after the leading `#`.
     StringStart,
 
@@ -247,36 +244,6 @@ impl<'a> Lexer<'a> {
                 self.advance_until(pat!('\n'));
                 self.emit(Token::LineComment)
             }
-            [Some('/'), Some('*'), ..] => {
-                self.advance_by(2);
-                let mut depth: usize = 1;
-                while depth > 0 {
-                    self.advance_until(pat!('*' | '/'));
-                    match self.window {
-                        [Some('*'), Some('/'), ..] => {
-                            self.advance_by(2);
-                            depth -= 1;
-                        }
-                        [Some('/'), Some('*'), ..] => {
-                            self.advance_by(2);
-                            depth += 1;
-                        }
-                        [Some(_), ..] => {
-                            // Advancing here is necessary to prevent the lexer from getting stuck
-                            // if the block comment contains a `*` or `/` that is not part of `/*`
-                            // or `*/` sequences.
-                            self.advance();
-                            continue;
-                        }
-                        [None, ..] => break,
-                    }
-                }
-                if depth == 0 {
-                    self.emit(Token::BlockComment)
-                } else {
-                    self.emit_error(LexicalError::UnclosedBlockComment)
-                }
-            }
             //-------------------------------------------------------------------------------------
             // Operators and punctuation.
             //-------------------------------------------------------------------------------------
@@ -398,15 +365,15 @@ impl<'a> Lexer<'a> {
                     // Keywords.
                     "as" => self.emit(Token::KwAs),
                     "const" => self.emit(Token::KwConst),
-                    "export" => self.emit(Token::KwExport),
+                    "extern" => self.emit(Token::KwExtern),
                     "fn" => self.emit(Token::KwFn),
                     "if" => self.emit(Token::KwIf),
                     "immediate" => self.emit(Token::KwImmediate),
                     "import" => self.emit(Token::KwImport),
                     "let" => self.emit(Token::KwLet),
                     "match" => self.emit(Token::KwMatch),
-                    "nonexhaustive" => self.emit(Token::KwNonexhaustive),
                     "provide" => self.emit(Token::KwProvide),
+                    "pub" => self.emit(Token::KwPub),
                     "return" => self.emit(Token::KwReturn),
                     "self" => self.emit(Token::KwSelf),
                     "transparent" => self.emit(Token::KwTransparent),
@@ -755,21 +722,6 @@ mod tests {
     }
 
     #[test]
-    fn scan_block_comment() {
-        // Valid.
-        scan!("/*x*/", ok: Token::BlockComment);
-        scan!("/*x/*x*/x*/", ok: Token::BlockComment);
-        scan!("/*x/*x*/x*/", ok: Token::BlockComment);
-        scan!("/*\nx\n*/", ok: Token::BlockComment);
-        scan!("/*x///x*/", ok: Token::BlockComment);
-        scan!("/*x//x*/", ok: Token::BlockComment);
-        // Invalid.
-        scan!("/*x", err: LexicalError::UnclosedBlockComment);
-        scan!("/*x/*x", err: LexicalError::UnclosedBlockComment);
-        scan!("/*x/*x*/", err: LexicalError::UnclosedBlockComment);
-    }
-
-    #[test]
     fn scan_operators_and_punctuation() {
         scan!("{", ok: Token::LeftBrace);
         scan!("[", ok: Token::LeftSquare);
@@ -957,15 +909,15 @@ mod tests {
     fn scan_keywords() {
         scan!("as", ok: Token::KwAs);
         scan!("const", ok: Token::KwConst);
-        scan!("export", ok: Token::KwExport);
+        scan!("extern", ok: Token::KwExtern);
         scan!("fn", ok: Token::KwFn);
         scan!("if", ok: Token::KwIf);
         scan!("immediate", ok: Token::KwImmediate);
         scan!("import", ok: Token::KwImport);
         scan!("let", ok: Token::KwLet);
         scan!("match", ok: Token::KwMatch);
-        scan!("nonexhaustive", ok: Token::KwNonexhaustive);
         scan!("provide", ok: Token::KwProvide);
+        scan!("pub", ok: Token::KwPub);
         scan!("return", ok: Token::KwReturn);
         scan!("self", ok: Token::KwSelf);
         scan!("transparent", ok: Token::KwTransparent);
