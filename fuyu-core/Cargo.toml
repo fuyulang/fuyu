@@ -1,0 +1,12 @@
+[package]
+name = "fuyu"
+version = "0.1.2"
+authors.workspace = true
+edition.workspace = true
+description = "The Fuyu programming language core library"
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords = ["concurrent", "functional", "language", "programming-language"]
+categories = ["compilers", "concurrency"]
+include.workspace = true

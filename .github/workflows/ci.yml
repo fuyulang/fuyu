@@ -49,14 +49,13 @@ jobs:
       - name: Check formatting
         run: cargo doc --workspace --verbose --document-private-items
 
-  # NOTE: This can be added back if any library targets are added to the project.
-  # doc-test:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #     - name: Check formatting
-  #       run: cargo test --workspace --verbose --doc
+  doc-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check formatting
+        run: cargo test --workspace --verbose --doc
 
   fmt:
     runs-on: ubuntu-latest

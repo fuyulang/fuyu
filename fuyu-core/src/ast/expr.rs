@@ -627,11 +627,11 @@ pub struct LetExpr<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// provide Emphasis = Strong;
-/// provide emphasis: Emphasis = Strong;
-/// provide (use a: A): B = B(10 * a.0);
-/// provide b_value(use a: A): B = B(10 * a.0);
-/// provide (use A): B = something_that_uses();
+/// provide Emphasis => Strong;
+/// provide emphasis: Emphasis => Strong;
+/// provide (use a: A): B => B(10 * a.0);
+/// provide b_value(use a: A): B => B(10 * a.0);
+/// provide (use A): B => something_that_uses();
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProvideExpr<'text> {
@@ -654,9 +654,9 @@ pub struct ProvideExpr<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// provide (use a: A): B = B(10 * a.0);
+/// provide (use a: A): B => B(10 * a.0);
 /// //       ^^^^^^^^
-/// provide (use A): B = something_that_uses_a();
+/// provide (use A): B => something_that_uses_a();
 /// //       ^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
