@@ -1,0 +1,12 @@
+[package]
+name = "fuyuc"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+description = "The Fuyu programming language compiler"
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords = ["concurrent", "functional", "language", "programming-language"]
+categories = ["command-line-utilities", "compilers", "concurrency"]
+include.workspace = true
