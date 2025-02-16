@@ -125,15 +125,9 @@ pub enum ImportDeclItem<'text> {
         rename: Option<Ident<'text>>,
     },
 
-    /// The `*` import.
-    Glob {
-        #[doc = docs!(span: "`*`")]
-        span: Span,
-    },
-
-    /// Import of a provision by name with a `use` prefix.
+    /// Import of a provision by name with a `provide` prefix.
     NamedProvision {
-        #[doc = docs!(span: "named provision"; including: "`use`", "rename")]
+        #[doc = docs!(span: "named provision"; including: "`provide`", "rename")]
         span: Span,
         #[doc = docs!(name: "item to import")]
         name: Ident<'text>,
@@ -141,20 +135,14 @@ pub enum ImportDeclItem<'text> {
         rename: Option<Ident<'text>>,
     },
 
-    /// Import of a provision by type with a `use` prefix.
+    /// Import of a provision by type with a `provide` prefix.
     ///
     /// Note that this type of import item cannot be renamed.
     TypedProvision {
-        #[doc = docs!(span: "typed provision"; including: "`use`")]
+        #[doc = docs!(span: "typed provision"; including: "`provide`")]
         span: Span,
         #[doc = docs!(type_name: "typed provision")]
         type_name: TypeName<'text>,
-    },
-
-    /// The `use *` import.
-    GlobProvision {
-        #[doc = docs!(span: "`use *`")]
-        span: Span,
     },
 }
 
@@ -315,11 +303,11 @@ pub struct FnDeclArg<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// provide Emphasis = Strong;
-/// provide emphasis: Emphasis = Strong;
-/// provide (use a: A): B = B(10 * a.0);
-/// provide b_value(use a: A): B = B(10 * a.0);
-/// provide (use A): B = something_that_uses();
+/// provide Emphasis => Strong;
+/// provide emphasis: Emphasis => Strong;
+/// provide (use a: A): B => B(10 * a.0);
+/// provide b_value(use a: A): B => B(10 * a.0);
+/// provide (use A): B => something_that_uses();
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProvideDecl<'text> {
