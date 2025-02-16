@@ -1,14 +1,18 @@
-[package]
-name = "fuyu"
-version = "0.1.2"
+[workspace]
+members = [
+  "fuyu-core",
+  "fuyuc",
+]
+resolver = "2"
+
+[workspace.package]
 authors = ["Adam Christiansen <code@adamc.io>"]
 edition = "2021"
-description = "The Fuyu programming language"
+# 1.51 is when `resolver = "2"` was introduced so that is the absolute minimum.
+rust-version = "1.51" # TODO: Determine minimum version.
 homepage = "https://fuyulang.org"
 repository = "https://github.com/fuyulang/fuyu"
 license = "MPL-2.0"
-keywords = ["concurrent", "functional"]
-categories = ["compilers", "concurrency"]
 include = [
   "/Cargo.toml",
   "/LICENSE",
