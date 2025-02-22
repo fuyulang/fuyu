@@ -7,6 +7,12 @@ macro_rules! docs {
     (args: $about:expr) => {
         concat!("The arguments to the ", $about, ".\n")
     };
+    (attribute) => {
+        concat!("The attribute body.\n")
+    };
+    (attributes: $about:expr) => {
+        concat!("The attributes attached to the ", $about, ".\n")
+    };
     (block_arg) => {
         concat!("The block argument to the function call.\n")
     };

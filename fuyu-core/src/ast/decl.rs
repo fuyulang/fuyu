@@ -38,6 +38,22 @@ pub enum Visibility {
     Public,
 }
 
+/// An attribute.
+///
+/// # Form examples
+///
+/// ```fuyu
+/// @[x]
+/// @[f(1, 2, 3)]
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct Attribute<'text> {
+    #[doc = docs!(span: "attribute")]
+    pub span: Span,
+    #[doc = docs!(attribute)]
+    pub expr: Expr<'text>,
+}
+
 /// An import declaration.
 ///
 /// # Form examples
@@ -45,8 +61,8 @@ pub enum Visibility {
 /// ```fuyu
 /// import a/b/c;
 /// import a/b/c::x;
-/// import a/b/c::{self as m, type T, T as V, use *};
-/// import a/b/c::{use ctx, use Add[_]};
+/// import a/b/c::{type T, T as V, provide _};
+/// import a/b/c::{provide ctx, provide Add[_]};
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportDecl<'text> {
@@ -58,6 +74,10 @@ pub struct ImportDecl<'text> {
     pub path: &'text str,
     #[doc = docs!(import: "items")]
     pub items: Vec<ImportDeclItem<'text>>,
+    #[doc = docs!(name: "renamed namespace")]
+    pub rename: Option<Ident<'text>>,
+    #[doc = docs!(attributes: "import")]
+    pub attributes: Vec<Attribute<'text>>,
 }
 
 /// The path settings for an import.
@@ -92,19 +112,11 @@ pub enum ImportDeclPathKind {
 /// # Form examples
 ///
 /// ```fuyu
-/// import a/b/c::{self as m, type T, T as V, use *};
-/// //             ^^^^^^^^^  ^^^^^^  ^^^^^^  ^^^^^
+/// import a/b/c::{type T, T as V, provide _} as m;
+/// //             ^^^^^^  ^^^^^^  ^^^^^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub enum ImportDeclItem<'text> {
-    /// The `self` keyword.
-    ModuleSelf {
-        #[doc = docs!(span: "self import"; including: "rename")]
-        span: Span,
-        #[doc = docs!(name: "imported item")]
-        rename: Option<Ident<'text>>,
-    },
-
     /// Import of a value by name.
     Value {
         #[doc = docs!(span: "value import"; including: "rename")]
@@ -165,6 +177,8 @@ pub struct ConstDecl<'text> {
     pub type_name: TypeName<'text>,
     #[doc = docs!(expr: "constant")]
     pub expr: Expr<'text>,
+    #[doc = docs!(attributes: "constant")]
+    pub attributes: Vec<Attribute<'text>>,
 }
 
 /// A type declaration.
@@ -190,6 +204,8 @@ pub struct TypeDecl<'text> {
     pub type_name: TypeName<'text>,
     #[doc = docs!(constructors)]
     pub constructors: Vec<TypeDeclConstructor<'text>>,
+    #[doc = docs!(attributes: "type")]
+    pub attributes: Vec<Attribute<'text>>,
 }
 
 /// A constructor in a type declaration.
@@ -265,9 +281,11 @@ pub struct FnDecl<'text> {
     #[doc = docs!(return_type)]
     pub return_type: Option<TypeName<'text>>,
     #[doc = docs!(exprs: "function")]
-    pub exprs: Vec<Expr<'text>>,
+    pub exprs: Option<Vec<Expr<'text>>>,
     #[doc = docs!(evaluate_last)]
     pub evaluate_last: bool,
+    #[doc = docs!(attributes: "function")]
+    pub attributes: Vec<Attribute<'text>>,
 }
 
 /// An argument in a function declaration.
@@ -323,6 +341,8 @@ pub struct ProvideDecl<'text> {
     pub type_name: TypeName<'text>,
     #[doc = docs!(expr: "provisioned value")]
     pub expr: Expr<'text>,
+    #[doc = docs!(attributes: "provision")]
+    pub attributes: Vec<Attribute<'text>>,
 }
 
 /// Implicit arguments to a provide declaration.

@@ -18,9 +18,15 @@
 //! - Parenthesized expressions ([`ParenExpr`]).
 //! - If expressions ([`IfExpr`]).
 //! - Match expressions ([`MatchExpr`]).
-//! - Return expressions ([`ReturnExpr`]).
+//! - Try expressions ([`TryExpr`]).
 //! - Let expressions ([`LetExpr`]).
+//! - Require expressions ([`RequireExpr`]).
 //! - Provide expressions ([`ProvideExpr`]).
+//! - Return expressions ([`ReturnExpr`]).
+//! - Panic expressions ([`PanicExpr`]).
+//! - Todo expressions ([`TodoExpr`]).
+//! - Unimplemented expressions ([`UnimplementedExpr`]).
+//! - Unreachable expressions ([`UnreachableExpr`]).
 //!
 //! Expressions can generally be composed, thus, the [`Expr`] enum represents any expression.
 
@@ -64,12 +70,24 @@ pub enum Expr<'text> {
     If(IfExpr<'text>),
     /// A match expression (refer to [`MatchExpr`]).
     Match(MatchExpr<'text>),
-    /// A return expression (refer to [`ReturnExpr`]).
-    Return(ReturnExpr<'text>),
+    /// A try expression (refer to [`TryExpr`]).
+    Try(TryExpr<'text>),
     /// A let expression (refer to [`LetExpr`]).
     Let(LetExpr<'text>),
+    /// A require expression (refer to [`RequireExpr`]).
+    Require(RequireExpr<'text>),
     /// A provide expression (refer to [`ProvideExpr`]).
     Provide(ProvideExpr<'text>),
+    /// A return expression (refer to [`ReturnExpr`]).
+    Return(ReturnExpr<'text>),
+    /// A provide expression (refer to [`PanicExpr`]).
+    Panic(PanicExpr<'text>),
+    /// A provide expression (refer to [`TodoExpr`]).
+    Todo(TodoExpr<'text>),
+    /// A provide expression (refer to [`UnimplementedExpr`]).
+    Unimplemented(UnimplementedExpr<'text>),
+    /// A provide expression (refer to [`UnreachableExpr`]).
+    Unreachable(UnreachableExpr<'text>),
 }
 
 /// An integer literal.
@@ -433,6 +451,8 @@ pub struct PrefixExpr<'text> {
 pub enum PrefixOp {
     /// `!`.
     Bang,
+    /// `..`.
+    DotDot,
     /// `-`.
     Minus,
 }
@@ -586,6 +606,24 @@ pub struct MatchClause<'text> {
     pub expr: Box<Expr<'text>>,
 }
 
+/// A try expression.
+///
+/// # Form examples
+///
+/// ```fuyu
+/// try value
+/// try f(1, 2, 3)
+/// x | try g("abc")
+/// //  ^^^^^^^^^^^^
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct TryExpr<'text> {
+    #[doc = docs!(span: "try")]
+    pub span: Span,
+    #[doc = docs!(expr: "try")]
+    pub expr: Box<Expr<'text>>,
+}
+
 /// A return expression.
 ///
 /// # Form examples
@@ -599,7 +637,7 @@ pub struct ReturnExpr<'text> {
     #[doc = docs!(span: "return")]
     pub span: Span,
     #[doc = docs!(expr: "return")]
-    pub expr: Box<Expr<'text>>,
+    pub expr: Option<Box<Expr<'text>>>,
 }
 
 /// A let expression.
@@ -619,6 +657,26 @@ pub struct LetExpr<'text> {
     #[doc = docs!(type_name: "let binding")]
     pub type_name: Option<TypeName<'text>>,
     #[doc = docs!(expr: "let binding")]
+    pub expr: Box<Expr<'text>>,
+}
+
+/// A require expression.
+///
+/// # Form examples
+///
+/// ```fuyu
+/// require a = 5
+/// require (x, y) = (3, 4)
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct RequireExpr<'text> {
+    #[doc = docs!(span: "require binding")]
+    pub span: Span,
+    #[doc = docs!(pattern: "require binding")]
+    pub pattern: Pattern<'text>,
+    #[doc = docs!(type_name: "require binding")]
+    pub type_name: Option<TypeName<'text>>,
+    #[doc = docs!(expr: "require binding")]
     pub expr: Box<Expr<'text>>,
 }
 
@@ -667,4 +725,68 @@ pub struct ProvideArg<'text> {
     ident: Option<Ident<'text>>,
     #[doc = docs!(type_name: "argument")]
     type_name: TypeName<'text>,
+}
+
+/// A panic expression.
+///
+/// # Form examples
+///
+/// ```fuyu
+/// panic
+/// panic "with a message"
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct PanicExpr<'text> {
+    #[doc = docs!(span: "panic")]
+    pub span: Span,
+    #[doc = docs!(expr: "panic")]
+    pub expr: Option<Box<Expr<'text>>>,
+}
+
+/// A todo expression.
+///
+/// # Form examples
+///
+/// ```fuyu
+/// todo
+/// todo "with a message"
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct TodoExpr<'text> {
+    #[doc = docs!(span: "todo")]
+    pub span: Span,
+    #[doc = docs!(expr: "todo")]
+    pub expr: Option<Box<Expr<'text>>>,
+}
+
+/// A unimplemented expression.
+///
+/// # Form examples
+///
+/// ```fuyu
+/// unimplemented
+/// unimplemented "with a message"
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct UnimplementedExpr<'text> {
+    #[doc = docs!(span: "unimplemented")]
+    pub span: Span,
+    #[doc = docs!(expr: "unimplemented")]
+    pub expr: Option<Box<Expr<'text>>>,
+}
+
+/// A unreachable expression.
+///
+/// # Form examples
+///
+/// ```fuyu
+/// unreachable
+/// unreachable "with a message"
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct UnreachableExpr<'text> {
+    #[doc = docs!(span: "unreachable")]
+    pub span: Span,
+    #[doc = docs!(expr: "unreachable")]
+    pub expr: Option<Box<Expr<'text>>>,
 }
