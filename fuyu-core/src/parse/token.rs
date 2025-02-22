@@ -39,18 +39,28 @@ pub enum Token {
     KwLet,
     /// The `match` keyword.
     KwMatch,
+    /// The `panic` keyword.
+    KwPanic,
     /// The `provide` keyword.
     KwProvide,
     /// The `pub` keyword.
     KwPub,
+    /// The `require` keyword.
+    KwRequire,
     /// The `return` keyword.
     KwReturn,
-    /// The `self` keyword.
-    KwSelf,
+    /// The `todo` keyword.
+    KwTodo,
     /// The `transparent` keyword.
     KwTransparent,
+    /// The `try` keyword.
+    KwTry,
     /// The `type` keyword.
     KwType,
+    /// The `unimplemented` keyword.
+    KwUnimplemented,
+    /// The `unreachable` keyword.
+    KwUnreachable,
     /// The `use` keyword.
     KwUse,
     /// The `with` keyword.
@@ -89,6 +99,8 @@ pub enum Token {
     RightSquare,
     /// `)`.
     RightParen,
+    /// `@[`
+    AtLeftSquare,
     /// `&&`.
     AmpAmp,
     /// `!`.
