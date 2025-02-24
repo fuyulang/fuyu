@@ -6,6 +6,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
+version = "0.1.3"
 authors = ["Adam Christiansen <code@adamc.io>"]
 edition = "2021"
 # 1.51 is when `resolver = "2"` was introduced so that is the absolute minimum.
