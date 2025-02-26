@@ -21,7 +21,7 @@
 //! - Try expressions ([`TryExpr`]).
 //! - Let expressions ([`LetExpr`]).
 //! - Require expressions ([`RequireExpr`]).
-//! - Provide expressions ([`ProvideExpr`]).
+//! - Proof expressions ([`ProofExpr`]).
 //! - Return expressions ([`ReturnExpr`]).
 //! - Panic expressions ([`PanicExpr`]).
 //! - Todo expressions ([`TodoExpr`]).
@@ -76,17 +76,17 @@ pub enum Expr<'text> {
     Let(LetExpr<'text>),
     /// A require expression (refer to [`RequireExpr`]).
     Require(RequireExpr<'text>),
-    /// A provide expression (refer to [`ProvideExpr`]).
-    Provide(ProvideExpr<'text>),
+    /// A proof expression (refer to [`ProofExpr`]).
+    Proof(ProofExpr<'text>),
     /// A return expression (refer to [`ReturnExpr`]).
     Return(ReturnExpr<'text>),
-    /// A provide expression (refer to [`PanicExpr`]).
+    /// A panic expression (refer to [`PanicExpr`]).
     Panic(PanicExpr<'text>),
-    /// A provide expression (refer to [`TodoExpr`]).
+    /// A todo expression (refer to [`TodoExpr`]).
     Todo(TodoExpr<'text>),
-    /// A provide expression (refer to [`UnimplementedExpr`]).
+    /// An unimplemented expression (refer to [`UnimplementedExpr`]).
     Unimplemented(UnimplementedExpr<'text>),
-    /// A provide expression (refer to [`UnreachableExpr`]).
+    /// An unreachable expression (refer to [`UnreachableExpr`]).
     Unreachable(UnreachableExpr<'text>),
 }
 
@@ -557,12 +557,10 @@ pub struct IfClause<'text> {
 
 /// A match expression.
 ///
-/// This is part of a [`MatchExpr`].
-///
 /// # Form examples
 ///
 /// ```fuyu
-/// match value with {
+/// value match {
 ///     Some(x) if x > 10 => x,
 ///     Some(x) => 2 * x,
 ///     _ => 0,
@@ -585,7 +583,7 @@ pub struct MatchExpr<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// match value with {
+/// value match {
 ///     Some(x) if x > 10 => x,
 /// //  ^^^^^^^^^^^^^^^^^^^^^^
 ///     Some(x) => 2 * x,
@@ -680,46 +678,46 @@ pub struct RequireExpr<'text> {
     pub expr: Box<Expr<'text>>,
 }
 
-/// A provide expression.
+/// A proof expression.
 ///
 /// # Form examples
 ///
 /// ```fuyu
-/// provide Emphasis => Strong;
-/// provide emphasis: Emphasis => Strong;
-/// provide (use a: A): B => B(10 * a.0);
-/// provide b_value(use a: A): B => B(10 * a.0);
-/// provide (use A): B => something_that_uses();
+/// proof Emphasis = Strong;
+/// proof emphasis: Emphasis = Strong;
+/// proof (use a: A): B = B(a.0);
+/// proof b_value(use a: A): B = B(a.0);
+/// proof (use A): B = B(1000);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProvideExpr<'text> {
-    #[doc = docs!(span: "provision")]
+pub struct ProofExpr<'text> {
+    #[doc = docs!(span: "proof")]
     span: Span,
-    #[doc = docs!(name: "provision")]
+    #[doc = docs!(name: "proof")]
     pub ident: Option<Ident<'text>>,
-    #[doc = docs!(args: "provision")]
-    pub args: Vec<ProvideArg<'text>>,
-    #[doc = docs!(type_name: "provision")]
+    #[doc = docs!(args: "proof")]
+    pub args: Vec<ProofArg<'text>>,
+    #[doc = docs!(type_name: "proof")]
     pub type_name: TypeName<'text>,
-    #[doc = docs!(expr: "provisioned value")]
+    #[doc = docs!(expr: "proven value")]
     pub expr: Box<Expr<'text>>,
 }
 
-/// Implicit arguments to a provide declaration.
+/// Implicit arguments to a proof declaration.
 ///
-/// This is part of a [`ProvideExpr`].
+/// This is part of a [`ProofExpr`].
 ///
 /// # Form examples
 ///
 /// ```fuyu
-/// provide (use a: A): B => B(10 * a.0);
-/// //       ^^^^^^^^
-/// provide (use A): B => something_that_uses_a();
-/// //       ^^^^^
+/// proof (use a: A): B = B(a.0);
+/// //     ^^^^^^^^
+/// proof (use A): B = B(1000);
+/// //     ^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProvideArg<'text> {
-    #[doc = docs!(span: "provision argument")]
+pub struct ProofArg<'text> {
+    #[doc = docs!(span: "proof argument")]
     span: Span,
     #[doc = docs!(name: "argument")]
     ident: Option<Ident<'text>>,

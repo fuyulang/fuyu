@@ -366,26 +366,23 @@ impl<'a> Lexer<'a> {
                     // Keywords.
                     "as" => self.emit(Token::KwAs),
                     "const" => self.emit(Token::KwConst),
-                    "extern" => self.emit(Token::KwExtern),
                     "fn" => self.emit(Token::KwFn),
+                    "for" => self.emit(Token::KwFor),
                     "if" => self.emit(Token::KwIf),
                     "immediate" => self.emit(Token::KwImmediate),
                     "import" => self.emit(Token::KwImport),
                     "let" => self.emit(Token::KwLet),
                     "match" => self.emit(Token::KwMatch),
                     "panic" => self.emit(Token::KwPanic),
-                    "provide" => self.emit(Token::KwProvide),
-                    "pub" => self.emit(Token::KwPub),
+                    "proof" => self.emit(Token::KwProof),
                     "require" => self.emit(Token::KwRequire),
                     "return" => self.emit(Token::KwReturn),
                     "todo" => self.emit(Token::KwTodo),
-                    "transparent" => self.emit(Token::KwTransparent),
                     "try" => self.emit(Token::KwTry),
                     "type" => self.emit(Token::KwType),
                     "unimplemented" => self.emit(Token::KwUnimplemented),
                     "unreachable" => self.emit(Token::KwUnreachable),
                     "use" => self.emit(Token::KwUse),
-                    "with" => self.emit(Token::KwWith),
                     // If not a keyword then this must be an identifier.
                     "_" => self.emit(Token::Underscore),
                     ident => {
@@ -916,26 +913,23 @@ mod tests {
     fn scan_keywords() {
         scan!("as", ok: Token::KwAs);
         scan!("const", ok: Token::KwConst);
-        scan!("extern", ok: Token::KwExtern);
         scan!("fn", ok: Token::KwFn);
+        scan!("for", ok: Token::KwFor);
         scan!("if", ok: Token::KwIf);
         scan!("immediate", ok: Token::KwImmediate);
         scan!("import", ok: Token::KwImport);
         scan!("let", ok: Token::KwLet);
         scan!("match", ok: Token::KwMatch);
         scan!("panic", ok: Token::KwPanic);
-        scan!("provide", ok: Token::KwProvide);
-        scan!("pub", ok: Token::KwPub);
+        scan!("proof", ok: Token::KwProof);
         scan!("require", ok: Token::KwRequire);
         scan!("return", ok: Token::KwReturn);
         scan!("todo", ok: Token::KwTodo);
-        scan!("transparent", ok: Token::KwTransparent);
         scan!("try", ok: Token::KwTry);
         scan!("type", ok: Token::KwType);
         scan!("unimplemented", ok: Token::KwUnimplemented);
         scan!("unreachable", ok: Token::KwUnreachable);
         scan!("use", ok: Token::KwUse);
-        scan!("with", ok: Token::KwWith);
     }
 
     #[test]
