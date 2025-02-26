@@ -6,7 +6,7 @@
 //! - `const` declarations ([`ConstDecl`]).
 //! - `type` declarations ([`TypeDecl`]).
 //! - `fn` declarations ([`FnDecl`]).
-//! - `provide` declarations ([`ProvideDecl`]).
+//! - `proof` declarations ([`ProofDecl`]).
 //!
 //! Each declaration has its own type, however, they are all part of [`Decl`], which is an enum
 //! that holds any type of declaration.
@@ -25,17 +25,8 @@ pub enum Decl<'text> {
     Type(TypeDecl<'text>),
     /// A function declaration (refer to [`FnDecl`]).
     Fn(FnDecl<'text>),
-    /// A provide declaration (refer to [`ProvideDecl`]).
-    Provide(ProvideDecl<'text>),
-}
-
-/// A visibility modifier.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Visibility {
-    /// Visible only within a module.
-    Private,
-    /// Declared with the `pub` keyword and is publically visible.
-    Public,
+    /// A proof declaration (refer to [`ProofDecl`]).
+    Proof(ProofDecl<'text>),
 }
 
 /// An attribute.
@@ -60,9 +51,9 @@ pub struct Attribute<'text> {
 ///
 /// ```fuyu
 /// import a/b/c;
-/// import a/b/c::x;
-/// import a/b/c::{type T, T as V, provide _};
-/// import a/b/c::{provide ctx, provide Add[_]};
+/// import a/b/c for x;
+/// import a/b/c for type T, T as V, proof _;
+/// import a/b/c as m for proof ctx, proof Add[_];
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportDecl<'text> {
@@ -72,10 +63,10 @@ pub struct ImportDecl<'text> {
     pub path_kind: ImportDeclPathKind,
     #[doc = docs!(import: "path")]
     pub path: &'text str,
-    #[doc = docs!(import: "items")]
-    pub items: Vec<ImportDeclItem<'text>>,
     #[doc = docs!(name: "renamed namespace")]
     pub rename: Option<Ident<'text>>,
+    #[doc = docs!(import: "items")]
+    pub items: Vec<ImportDeclItem<'text>>,
     #[doc = docs!(attributes: "import")]
     pub attributes: Vec<Attribute<'text>>,
 }
@@ -88,21 +79,21 @@ pub struct ImportDecl<'text> {
 ///
 /// ```fuyu
 /// import a/b/c;
+/// import ./a/b/c;
 /// import ../a/b/c;
 /// import ../../a/b/c;
 /// import /a/b/c;
-/// import extern a/b/c;
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportDeclPathKind {
-    /// A relative import with respect to the current file.
+    /// An import with no leading path specifier.
+    Bare,
+    /// A relative import with a leading path import of `./`, `../`, `../../`, and so on.
     ///
-    /// This tracks the number of `../` at the front.
+    /// This tracks the number of `../`. This is zero when the path specifier is `./`.
     Relative(usize),
-    /// An absolute import with respect to the root of the current package.
+    /// An absolute import with with a leading path specifier of `/`.
     Absolute,
-    /// An import marked as `extern`.
-    External,
 }
 
 /// Items in the import list.
@@ -112,8 +103,8 @@ pub enum ImportDeclPathKind {
 /// # Form examples
 ///
 /// ```fuyu
-/// import a/b/c::{type T, T as V, provide _} as m;
-/// //             ^^^^^^  ^^^^^^  ^^^^^^^^^
+/// import a/b/c for type T, T as V, proof _;
+/// //               ^^^^^^  ^^^^^^  ^^^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub enum ImportDeclItem<'text> {
@@ -137,9 +128,9 @@ pub enum ImportDeclItem<'text> {
         rename: Option<Ident<'text>>,
     },
 
-    /// Import of a provision by name with a `provide` prefix.
-    NamedProvision {
-        #[doc = docs!(span: "named provision"; including: "`provide`", "rename")]
+    /// Import of a proof by name with a `proof` prefix.
+    NamedProof {
+        #[doc = docs!(span: "named proof"; including: "`proof`", "rename")]
         span: Span,
         #[doc = docs!(name: "item to import")]
         name: Ident<'text>,
@@ -147,13 +138,13 @@ pub enum ImportDeclItem<'text> {
         rename: Option<Ident<'text>>,
     },
 
-    /// Import of a provision by type with a `provide` prefix.
+    /// Import of a proof by type with a `proof` prefix.
     ///
     /// Note that this type of import item cannot be renamed.
-    TypedProvision {
-        #[doc = docs!(span: "typed provision"; including: "`provide`")]
+    TypedProof {
+        #[doc = docs!(span: "typed proof"; including: "`proof`")]
         span: Span,
-        #[doc = docs!(type_name: "typed provision")]
+        #[doc = docs!(type_name: "typed proof")]
         type_name: TypeName<'text>,
     },
 }
@@ -167,10 +158,8 @@ pub enum ImportDeclItem<'text> {
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConstDecl<'text> {
-    #[doc = docs!(span: "constant binding"; including: "modifiers", "`;`")]
+    #[doc = docs!(span: "constant binding"; including: "`;`")]
     pub span: Span,
-    #[doc = docs!(visibility)]
-    pub visibility: Visibility,
     #[doc = docs!(name: "constant binding")]
     pub ident: Ident<'text>,
     #[doc = docs!(type_name: "constant binding")]
@@ -194,12 +183,8 @@ pub struct ConstDecl<'text> {
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeDecl<'text> {
-    #[doc = docs!(span: "type declaration"; including: "modifiers", "`;`")]
+    #[doc = docs!(span: "type declaration"; including: "`;`")]
     pub span: Span,
-    #[doc = docs!(visibility)]
-    pub visibility: Visibility,
-    #[doc = docs!(transparent)]
-    pub transparent: bool,
     #[doc = docs!(type_name: "type declaration")]
     pub type_name: TypeName<'text>,
     #[doc = docs!(constructors)]
@@ -270,10 +255,8 @@ pub struct TypeDeclField<'text> {
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct FnDecl<'text> {
-    #[doc = docs!(span: "function declaration"; including: "modifiers", "`;`")]
+    #[doc = docs!(span: "function declaration"; including: "`;`")]
     pub span: Span,
-    #[doc = docs!(visibility)]
-    pub visibility: Visibility,
     #[doc = docs!(name: "function")]
     pub ident: Ident<'text>,
     #[doc = docs!(args: "function")]
@@ -316,50 +299,48 @@ pub struct FnDeclArg<'text> {
     pub type_name: TypeName<'text>,
 }
 
-/// A provide declaration.
+/// A proof declaration.
 ///
 /// # Form examples
 ///
 /// ```fuyu
-/// provide Emphasis => Strong;
-/// provide emphasis: Emphasis => Strong;
-/// provide (use a: A): B => B(10 * a.0);
-/// provide b_value(use a: A): B => B(10 * a.0);
-/// provide (use A): B => something_that_uses();
+/// proof Emphasis = Strong;
+/// proof emphasis: Emphasis = Strong;
+/// proof (use a: A): B = B(a.0);
+/// proof b_value(use a: A): B = B(a.0);
+/// proof (use A): B = B(1000);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProvideDecl<'text> {
-    #[doc = docs!(span: "provision"; including: "modifiers", "`;`")]
+pub struct ProofDecl<'text> {
+    #[doc = docs!(span: "proof"; including: "`;`")]
     span: Span,
-    #[doc = docs!(visibility)]
-    pub visibility: Visibility,
-    #[doc = docs!(name: "provision")]
+    #[doc = docs!(name: "proof")]
     pub ident: Option<Ident<'text>>,
-    #[doc = docs!(args: "provision")]
-    pub args: Vec<ProvideDeclArg<'text>>,
-    #[doc = docs!(type_name: "provision")]
+    #[doc = docs!(args: "proof")]
+    pub args: Vec<ProofDeclArg<'text>>,
+    #[doc = docs!(type_name: "proof")]
     pub type_name: TypeName<'text>,
-    #[doc = docs!(expr: "provisioned value")]
+    #[doc = docs!(expr: "proven value")]
     pub expr: Expr<'text>,
-    #[doc = docs!(attributes: "provision")]
+    #[doc = docs!(attributes: "proof")]
     pub attributes: Vec<Attribute<'text>>,
 }
 
-/// Implicit arguments to a provide declaration.
+/// Implicit arguments to a proof declaration.
 ///
-/// This is part of a [`ProvideDecl`].
+/// This is part of a [`ProofDecl`].
 ///
 /// # Form examples
 ///
 /// ```fuyu
-/// provide (use a: A): B = B(10 * a.0);
-/// //       ^^^^^^^^
-/// provide (use A): B = something_that_uses_a();
-/// //       ^^^^^
+/// proof (use a: A): B = B(a.0);
+/// //     ^^^^^^^^
+/// proof (use A): B = B(1000);
+/// //     ^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProvideDeclArg<'text> {
-    #[doc = docs!(span: "provision argument")]
+pub struct ProofDeclArg<'text> {
+    #[doc = docs!(span: "proof argument")]
     span: Span,
     #[doc = docs!(name: "argument")]
     ident: Option<Ident<'text>>,

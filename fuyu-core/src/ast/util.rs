@@ -77,9 +77,6 @@ macro_rules! docs {
     (rest_pattern) => {
         concat!("The rest (`..`) pattern.\n")
     };
-    (transparent) => {
-        concat!("Whether the declaration is annotated with `transparent`.\n")
-    };
     (type_name: $about:expr) => {
         concat!("The type name of the ", $about, ".\n")
     };
@@ -88,9 +85,6 @@ macro_rules! docs {
     };
     (using) => {
         concat!("Whether an argument is annotated with `use`.\n")
-    };
-    (visibility) => {
-        concat!("The visibility level of the declaration.\n")
     };
     // The `@list` takes a list of strings and formats them in proper English.
     (@list: $a:expr) => {
