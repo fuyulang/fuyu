@@ -25,10 +25,10 @@ pub enum Token {
     KwAs,
     /// The `const` keyword.
     KwConst,
-    /// The `extern` keyword.
-    KwExtern,
     /// The `fn` keyword.
     KwFn,
+    /// The `for` keyword.
+    KwFor,
     /// The `if` keyword.
     KwIf,
     /// The `immediate` keyword.
@@ -41,18 +41,14 @@ pub enum Token {
     KwMatch,
     /// The `panic` keyword.
     KwPanic,
-    /// The `provide` keyword.
-    KwProvide,
-    /// The `pub` keyword.
-    KwPub,
+    /// The `proof` keyword.
+    KwProof,
     /// The `require` keyword.
     KwRequire,
     /// The `return` keyword.
     KwReturn,
     /// The `todo` keyword.
     KwTodo,
-    /// The `transparent` keyword.
-    KwTransparent,
     /// The `try` keyword.
     KwTry,
     /// The `type` keyword.
@@ -63,8 +59,6 @@ pub enum Token {
     KwUnreachable,
     /// The `use` keyword.
     KwUse,
-    /// The `with` keyword.
-    KwWith,
     /// A binary literal integer prefixed with `0b`.
     BinInt,
     /// An octal literal integer prefixed with `0o`.
