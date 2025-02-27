@@ -247,10 +247,7 @@ impl<'a> Lexer<'a> {
             //-------------------------------------------------------------------------------------
             // Operators and punctuation.
             //-------------------------------------------------------------------------------------
-            [Some('!'), Some('='), ..] => self.advance_by_and_emit(2, Token::BangEq),
-            [Some('!'), ..] => self.advance_by_and_emit(1, Token::Bang),
             [Some('%'), ..] => self.advance_by_and_emit(1, Token::Percent),
-            [Some('&'), Some('&'), ..] => self.advance_by_and_emit(2, Token::AmpAmp),
             [Some('('), ..] => self.advance_by_and_emit(1, Token::LeftParen),
             [Some(')'), ..] => self.advance_by_and_emit(1, Token::RightParen),
             [Some('*'), Some('*'), ..] => self.advance_by_and_emit(2, Token::StarStar),
@@ -261,6 +258,7 @@ impl<'a> Lexer<'a> {
             [Some('-'), ..] => self.advance_by_and_emit(1, Token::Minus),
             [Some('.'), Some('.'), ..] => self.advance_by_and_emit(2, Token::DotDot),
             [Some('.'), ..] => self.advance_by_and_emit(1, Token::Dot),
+            [Some('/'), Some('='), ..] => self.advance_by_and_emit(2, Token::SlashEq),
             [Some('/'), ..] => self.advance_by_and_emit(1, Token::Slash),
             [Some(':'), Some(':'), ..] => self.advance_by_and_emit(2, Token::ColonColon),
             [Some(':'), ..] => self.advance_by_and_emit(1, Token::Colon),
@@ -275,7 +273,6 @@ impl<'a> Lexer<'a> {
             [Some('['), ..] => self.advance_by_and_emit(1, Token::LeftSquare),
             [Some(']'), ..] => self.advance_by_and_emit(1, Token::RightSquare),
             [Some('{'), ..] => self.advance_by_and_emit(1, Token::LeftBrace),
-            [Some('|'), Some('|'), ..] => self.advance_by_and_emit(2, Token::PipePipe),
             [Some('|'), ..] => self.advance_by_and_emit(1, Token::Pipe),
             [Some('}'), ..] => self.advance_by_and_emit(1, Token::RightBrace),
             [Some('@'), Some('['), ..] => self.advance_by_and_emit(2, Token::AtLeftSquare),
@@ -364,6 +361,7 @@ impl<'a> Lexer<'a> {
                 self.advance_while(|c| is_text_like(c) || c == '#');
                 match self.as_marked_str() {
                     // Keywords.
+                    "and" => self.emit(Token::KwAnd),
                     "as" => self.emit(Token::KwAs),
                     "const" => self.emit(Token::KwConst),
                     "fn" => self.emit(Token::KwFn),
@@ -373,6 +371,8 @@ impl<'a> Lexer<'a> {
                     "import" => self.emit(Token::KwImport),
                     "let" => self.emit(Token::KwLet),
                     "match" => self.emit(Token::KwMatch),
+                    "not" => self.emit(Token::KwNot),
+                    "or" => self.emit(Token::KwOr),
                     "panic" => self.emit(Token::KwPanic),
                     "proof" => self.emit(Token::KwProof),
                     "require" => self.emit(Token::KwRequire),
@@ -733,9 +733,6 @@ mod tests {
         scan!("]", ok: Token::RightSquare);
         scan!(")", ok: Token::RightParen);
         scan!("@[", ok: Token::AtLeftSquare);
-        scan!("&&", ok: Token::AmpAmp);
-        scan!("!", ok: Token::Bang);
-        scan!("!=", ok: Token::BangEq);
         scan!(",", ok: Token::Comma);
         scan!(":", ok: Token::Colon);
         scan!("::", ok: Token::ColonColon);
@@ -752,10 +749,10 @@ mod tests {
         scan!("->", ok: Token::MinusGt);
         scan!("%", ok: Token::Percent);
         scan!("|", ok: Token::Pipe);
-        scan!("||", ok: Token::PipePipe);
         scan!("+", ok: Token::Plus);
         scan!(";", ok: Token::Semicolon);
         scan!("/", ok: Token::Slash);
+        scan!("/=", ok: Token::SlashEq);
         scan!("*", ok: Token::Star);
         scan!("**", ok: Token::StarStar);
     }
@@ -911,6 +908,7 @@ mod tests {
 
     #[test]
     fn scan_keywords() {
+        scan!("and", ok: Token::KwAnd);
         scan!("as", ok: Token::KwAs);
         scan!("const", ok: Token::KwConst);
         scan!("fn", ok: Token::KwFn);
@@ -920,6 +918,8 @@ mod tests {
         scan!("import", ok: Token::KwImport);
         scan!("let", ok: Token::KwLet);
         scan!("match", ok: Token::KwMatch);
+        scan!("not", ok: Token::KwNot);
+        scan!("or", ok: Token::KwOr);
         scan!("panic", ok: Token::KwPanic);
         scan!("proof", ok: Token::KwProof);
         scan!("require", ok: Token::KwRequire);

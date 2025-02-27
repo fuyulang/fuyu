@@ -399,10 +399,8 @@ pub struct InfixExpr<'text> {
 /// A binary infix operator.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InfixOp {
-    /// `&&`.
-    AmpAmp,
-    /// `!=`.
-    BangEq,
+    /// `and`.
+    And,
     /// `==`.
     EqEq,
     /// `=>`.
@@ -417,14 +415,16 @@ pub enum InfixOp {
     LtEq,
     /// `-`.
     Minus,
+    /// `or`.
+    Or,
     /// `%`.
     Percent,
-    /// `||`.
-    PipePipe,
     /// `+`.
     Plus,
     /// `/`.
     Slash,
+    /// `/=`.
+    SlashEq,
     /// `*`.
     Star,
     /// `**`.
@@ -449,12 +449,12 @@ pub struct PrefixExpr<'text> {
 /// A unary prefix operator.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PrefixOp {
-    /// `!`.
-    Bang,
     /// `..`.
     DotDot,
     /// `-`.
     Minus,
+    /// `not`.
+    Not,
 }
 
 /// A field access.
