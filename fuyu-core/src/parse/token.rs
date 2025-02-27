@@ -21,6 +21,8 @@ pub enum Token {
     RawUpperIdent,
     /// An underscore, `_`.
     Underscore,
+    /// The `and` keyword.
+    KwAnd,
     /// The `as` keyword.
     KwAs,
     /// The `const` keyword.
@@ -39,6 +41,10 @@ pub enum Token {
     KwLet,
     /// The `match` keyword.
     KwMatch,
+    /// The `not` keyword.
+    KwNot,
+    /// The `or` keyword.
+    KwOr,
     /// The `panic` keyword.
     KwPanic,
     /// The `proof` keyword.
@@ -95,12 +101,6 @@ pub enum Token {
     RightParen,
     /// `@[`
     AtLeftSquare,
-    /// `&&`.
-    AmpAmp,
-    /// `!`.
-    Bang,
-    /// `!=`.
-    BangEq,
     /// `,`.
     Comma,
     /// `:`.
@@ -133,14 +133,14 @@ pub enum Token {
     Percent,
     /// `|`.
     Pipe,
-    /// `||`.
-    PipePipe,
     /// `+`.
     Plus,
     /// `;`.
     Semicolon,
     /// `/`.
     Slash,
+    /// `/=`.
+    SlashEq,
     /// `*`.
     Star,
     /// `**`.
