@@ -10,7 +10,7 @@
 //! - Identifiers ([`IdentExpr`]).
 //! - The `immediate` keyword ([`ImmediateExpr`]).
 //! - Block expressions ([`BlockExpr`]).
-//! - Anonymous functions ([`FnExpr`]).
+//! - Anonymous functions ([`FunctionExpr`]).
 //! - Function calls ([`CallExpr`]).
 //! - Binary infix operations ([`InfixExpr`]).
 //! - Unary prefix operations ([`PrefixExpr`]).
@@ -52,8 +52,8 @@ pub enum Expr<'text> {
     Immediate(ImmediateExpr),
     /// A block expression (refer to [`BlockExpr`]).
     Block(BlockExpr<'text>),
-    /// Anonymous function (refer to [`FnExpr`]).
-    Fn(FnExpr<'text>),
+    /// Anonymous function (refer to [`FunctionExpr`]).
+    Function(FunctionExpr<'text>),
     /// Function call (refer to [`CallExpr`]).
     Call(CallExpr<'text>),
     /// A binary infix operation (refer to [`InfixExpr`]).
@@ -241,16 +241,16 @@ pub struct BlockExpr<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// fn() {}
-/// fn(x) { x }
-/// fn(use ctx: Context, x: Int) -> Int { ctx.next(x) }
+/// function() {}
+/// function(x) { x }
+/// function(use ctx: Context, x: Int) -> Int { ctx.next(x) }
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct FnExpr<'text> {
+pub struct FunctionExpr<'text> {
     #[doc = docs!(span: "function")]
     pub span: Span,
     #[doc = docs!(args: "function")]
-    pub args: Vec<FnArg<'text>>,
+    pub args: Vec<FunctionArg<'text>>,
     #[doc = docs!(return_type)]
     pub return_type: Option<TypeName<'text>>,
     #[doc = docs!(exprs: "function")]
@@ -259,18 +259,18 @@ pub struct FnExpr<'text> {
 
 /// An argument in an anonymous function.
 ///
-/// This is part of a [`FnExpr`].
+/// This is part of a [`FunctionExpr`].
 ///
 /// # Form examples
 ///
 /// ```fuyu
-/// fn(x) { x }
+/// function(x) { x }
 /// // ^
-/// fn(use ctx: Context, x: Int) -> Int { ctx.next(x) }
+/// function(use ctx: Context, x: Int) -> Int { ctx.next(x) }
 /// // ^^^^^^^^^^^^^^^^  ^^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct FnArg<'text> {
+pub struct FunctionArg<'text> {
     #[doc = docs!(span: "anonymous function argument")]
     pub span: Span,
     #[doc = docs!(using)]
@@ -304,7 +304,7 @@ pub struct CallExpr<'text> {
     #[doc = docs!(args: "function call")]
     pub args: Vec<CallArg<'text>>,
     #[doc = docs!(block_arg)]
-    pub block: Option<FnCallBlock<'text>>,
+    pub block: Option<FunctionCallBlock<'text>>,
 }
 
 /// An argument to a function call.
@@ -348,7 +348,7 @@ pub struct CallArg<'text> {
 /// //       ^^^^^^^^^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct FnCallBlock<'text> {
+pub struct FunctionCallBlock<'text> {
     #[doc = docs!(span: "block"; including: "`{`", "`}`")]
     pub span: Span,
     #[doc = docs!(args: "block")]

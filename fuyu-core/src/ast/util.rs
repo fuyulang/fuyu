@@ -80,6 +80,9 @@ macro_rules! docs {
     (type_name: $about:expr) => {
         concat!("The type name of the ", $about, ".\n")
     };
+    (type_names: $about:expr) => {
+        concat!("The type names of the ", $about, ".\n")
+    };
     (type_params) => {
         concat!("The parameters to a type.\n")
     };

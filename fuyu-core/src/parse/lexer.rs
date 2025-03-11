@@ -363,8 +363,8 @@ impl<'a> Lexer<'a> {
                     // Keywords.
                     "and" => self.emit(Token::KwAnd),
                     "as" => self.emit(Token::KwAs),
-                    "const" => self.emit(Token::KwConst),
-                    "fn" => self.emit(Token::KwFn),
+                    "constant" => self.emit(Token::KwConstant),
+                    "function" => self.emit(Token::KwFunction),
                     "for" => self.emit(Token::KwFor),
                     "if" => self.emit(Token::KwIf),
                     "immediate" => self.emit(Token::KwImmediate),
@@ -910,8 +910,8 @@ mod tests {
     fn scan_keywords() {
         scan!("and", ok: Token::KwAnd);
         scan!("as", ok: Token::KwAs);
-        scan!("const", ok: Token::KwConst);
-        scan!("fn", ok: Token::KwFn);
+        scan!("constant", ok: Token::KwConstant);
+        scan!("function", ok: Token::KwFunction);
         scan!("for", ok: Token::KwFor);
         scan!("if", ok: Token::KwIf);
         scan!("immediate", ok: Token::KwImmediate);
