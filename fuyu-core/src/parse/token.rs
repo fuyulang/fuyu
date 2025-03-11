@@ -25,10 +25,10 @@ pub enum Token {
     KwAnd,
     /// The `as` keyword.
     KwAs,
-    /// The `const` keyword.
-    KwConst,
-    /// The `fn` keyword.
-    KwFn,
+    /// The `constant` keyword.
+    KwConstant,
+    /// The `function` keyword.
+    KwFunction,
     /// The `for` keyword.
     KwFor,
     /// The `if` keyword.

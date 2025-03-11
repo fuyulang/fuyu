@@ -3,9 +3,9 @@
 //! Declarations are statements that can appear at the top level in a module. Currently, these are:
 //!
 //! - `import` declarations ([`ImportDecl`]).
-//! - `const` declarations ([`ConstDecl`]).
+//! - `constant` declarations ([`ConstantDecl`]).
 //! - `type` declarations ([`TypeDecl`]).
-//! - `fn` declarations ([`FnDecl`]).
+//! - `function` declarations ([`FunctionDecl`]).
 //! - `proof` declarations ([`ProofDecl`]).
 //!
 //! Each declaration has its own type, however, they are all part of [`Decl`], which is an enum
@@ -19,12 +19,12 @@ use crate::parse::Span;
 pub enum Decl<'text> {
     /// An import declaration (refer to [`ImportDecl`]).
     Import(ImportDecl<'text>),
-    /// A constant declaration (refer to [`ConstDecl`]).
-    Const(ConstDecl<'text>),
+    /// A constant declaration (refer to [`ConstantDecl`]).
+    Const(ConstantDecl<'text>),
     /// A type declaration (refer to [`TypeDecl`]).
     Type(TypeDecl<'text>),
-    /// A function declaration (refer to [`FnDecl`]).
-    Fn(FnDecl<'text>),
+    /// A function declaration (refer to [`FunctionDecl`]).
+    Function(FunctionDecl<'text>),
     /// A proof declaration (refer to [`ProofDecl`]).
     Proof(ProofDecl<'text>),
 }
@@ -154,10 +154,10 @@ pub enum ImportDeclItem<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// const magic_number: Int = 123;
+/// constant magic_number: Int = 123;
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct ConstDecl<'text> {
+pub struct ConstantDecl<'text> {
     #[doc = docs!(span: "constant binding"; including: "`;`")]
     pub span: Span,
     #[doc = docs!(name: "constant binding")]
@@ -248,19 +248,19 @@ pub struct TypeDeclField<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// fn f(value: Triple) {}
-/// fn f(named value: Triple) {}
-/// fn f(use named value: Triple) {}
-/// fn f(use named Triple(x, y, z): Triple) {}
+/// function f(value: Triple) {}
+/// function f(named value: Triple) {}
+/// function f(use named value: Triple) {}
+/// function f(use named Triple(x, y, z): Triple) {}
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct FnDecl<'text> {
+pub struct FunctionDecl<'text> {
     #[doc = docs!(span: "function declaration"; including: "`;`")]
     pub span: Span,
     #[doc = docs!(name: "function")]
     pub ident: Ident<'text>,
     #[doc = docs!(args: "function")]
-    pub args: Vec<FnDeclArg<'text>>,
+    pub args: Vec<FunctionDeclArg<'text>>,
     #[doc = docs!(return_type)]
     pub return_type: Option<TypeName<'text>>,
     #[doc = docs!(exprs: "function")]
@@ -276,17 +276,17 @@ pub struct FnDecl<'text> {
 /// # Form examples
 ///
 /// ```fuyu
-/// fn f(value: Triple) {}
-/// //  ^^^^^^^^^^^^^^
-/// fn f(named value: Triple) {}
-/// //  ^^^^^^^^^^^^^^^^^^^^
-/// fn f(use named value: Triple) {}
-/// //  ^^^^^^^^^^^^^^^^^^^^^^^^
-/// fn f(use named Triple(x, y, z): Triple) {}
-/// //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/// function f(value: Triple) {}
+/// //         ^^^^^^^^^^^^^^
+/// function f(named value: Triple) {}
+/// //         ^^^^^^^^^^^^^^^^^^^^
+/// function f(use named value: Triple) {}
+/// //         ^^^^^^^^^^^^^^^^^^^^^^^^
+/// function f(use named Triple(x, y, z): Triple) {}
+/// //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct FnDeclArg<'text> {
+pub struct FunctionDeclArg<'text> {
     #[doc = docs!(span: "function declaration argument")]
     pub span: Span,
     #[doc = docs!(using)]
