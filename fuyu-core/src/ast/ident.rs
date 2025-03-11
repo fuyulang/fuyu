@@ -50,6 +50,7 @@ pub struct Ident<'text> {
 /// (a, Int, namespace::SomeType[a, b])
 /// a[b, c]
 /// _
+/// function(a, b)
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeName<'text> {
@@ -68,5 +69,14 @@ pub enum TypeName<'text> {
         span: Span,
         #[doc = docs!(type_params)]
         params: Vec<Self>,
+    },
+    /// A function type.
+    Function {
+        #[doc = docs!(span: "type name tuple"; including: "`function(`", "`)`", "`->`")]
+        span: Span,
+        #[doc = docs!(type_names: "function arguments")]
+        params: Vec<Self>,
+        #[doc = docs!(return_type)]
+        return_type: Option<Box<Self>>,
     },
 }
