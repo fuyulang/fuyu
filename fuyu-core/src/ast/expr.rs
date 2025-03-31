@@ -399,8 +399,6 @@ pub struct InfixExpr<'text> {
 /// A binary infix operator.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InfixOp {
-    /// `and`.
-    And,
     /// `==`.
     EqEq,
     /// `=>`.

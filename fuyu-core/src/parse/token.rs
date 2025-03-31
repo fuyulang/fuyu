@@ -21,8 +21,6 @@ pub enum Token {
     RawUpperIdent,
     /// An underscore, `_`.
     Underscore,
-    /// The `and` keyword.
-    KwAnd,
     /// The `as` keyword.
     KwAs,
     /// The `constant` keyword.
