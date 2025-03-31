@@ -361,7 +361,6 @@ impl<'a> Lexer<'a> {
                 self.advance_while(|c| is_text_like(c) || c == '#');
                 match self.as_marked_str() {
                     // Keywords.
-                    "and" => self.emit(Token::KwAnd),
                     "as" => self.emit(Token::KwAs),
                     "constant" => self.emit(Token::KwConstant),
                     "function" => self.emit(Token::KwFunction),
@@ -908,7 +907,6 @@ mod tests {
 
     #[test]
     fn scan_keywords() {
-        scan!("and", ok: Token::KwAnd);
         scan!("as", ok: Token::KwAs);
         scan!("constant", ok: Token::KwConstant);
         scan!("function", ok: Token::KwFunction);
