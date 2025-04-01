@@ -37,8 +37,6 @@ pub enum Token {
     KwMatch,
     /// The `panic` keyword.
     KwPanic,
-    /// The `proof` keyword.
-    KwProof,
     /// The `require` keyword.
     KwRequire,
     /// The `return` keyword.
