@@ -35,8 +35,6 @@ pub enum Token {
     KwLet,
     /// The `match` keyword.
     KwMatch,
-    /// The `not` keyword.
-    KwNot,
     /// The `or` keyword.
     KwOr,
     /// The `panic` keyword.

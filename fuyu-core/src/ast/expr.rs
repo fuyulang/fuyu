@@ -451,8 +451,6 @@ pub enum PrefixOp {
     DotDot,
     /// `-`.
     Minus,
-    /// `not`.
-    Not,
 }
 
 /// A field access.

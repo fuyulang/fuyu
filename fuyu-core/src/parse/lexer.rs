@@ -368,7 +368,6 @@ impl<'a> Lexer<'a> {
                     "import" => self.emit(Token::KwImport),
                     "let" => self.emit(Token::KwLet),
                     "match" => self.emit(Token::KwMatch),
-                    "not" => self.emit(Token::KwNot),
                     "or" => self.emit(Token::KwOr),
                     "panic" => self.emit(Token::KwPanic),
                     "proof" => self.emit(Token::KwProof),
@@ -912,7 +911,6 @@ mod tests {
         scan!("import", ok: Token::KwImport);
         scan!("let", ok: Token::KwLet);
         scan!("match", ok: Token::KwMatch);
-        scan!("not", ok: Token::KwNot);
         scan!("or", ok: Token::KwOr);
         scan!("panic", ok: Token::KwPanic);
         scan!("proof", ok: Token::KwProof);
