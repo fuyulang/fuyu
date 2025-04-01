@@ -413,8 +413,6 @@ pub enum InfixOp {
     LtEq,
     /// `-`.
     Minus,
-    /// `or`.
-    Or,
     /// `%`.
     Percent,
     /// `+`.
