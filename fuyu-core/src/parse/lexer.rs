@@ -369,7 +369,6 @@ impl<'a> Lexer<'a> {
                     "let" => self.emit(Token::KwLet),
                     "match" => self.emit(Token::KwMatch),
                     "panic" => self.emit(Token::KwPanic),
-                    "proof" => self.emit(Token::KwProof),
                     "require" => self.emit(Token::KwRequire),
                     "return" => self.emit(Token::KwReturn),
                     "todo" => self.emit(Token::KwTodo),
@@ -911,7 +910,6 @@ mod tests {
         scan!("let", ok: Token::KwLet);
         scan!("match", ok: Token::KwMatch);
         scan!("panic", ok: Token::KwPanic);
-        scan!("proof", ok: Token::KwProof);
         scan!("require", ok: Token::KwRequire);
         scan!("return", ok: Token::KwReturn);
         scan!("todo", ok: Token::KwTodo);
