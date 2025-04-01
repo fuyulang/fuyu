@@ -362,7 +362,6 @@ impl<'a> Lexer<'a> {
                 match self.as_marked_str() {
                     // Keywords.
                     "as" => self.emit(Token::KwAs),
-                    "constant" => self.emit(Token::KwConstant),
                     "function" => self.emit(Token::KwFunction),
                     "for" => self.emit(Token::KwFor),
                     "if" => self.emit(Token::KwIf),
@@ -908,7 +907,6 @@ mod tests {
     #[test]
     fn scan_keywords() {
         scan!("as", ok: Token::KwAs);
-        scan!("constant", ok: Token::KwConstant);
         scan!("function", ok: Token::KwFunction);
         scan!("for", ok: Token::KwFor);
         scan!("if", ok: Token::KwIf);
