@@ -101,6 +101,8 @@ pub enum Token {
     AtLeftSquare,
     /// `&&`.
     AmpAmp,
+    /// `@`.
+    At,
     /// `,`.
     Comma,
     /// `:`.
