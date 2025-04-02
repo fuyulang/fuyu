@@ -103,6 +103,8 @@ pub enum Token {
     AmpAmp,
     /// `@`.
     At,
+    /// `\`.
+    BackSlash,
     /// `,`.
     Comma,
     /// `:`.
