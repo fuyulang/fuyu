@@ -135,6 +135,8 @@ pub enum Token {
     Percent,
     /// `|`.
     Pipe,
+    /// `||`.
+    PipePipe,
     /// `+`.
     Plus,
     /// `;`.
