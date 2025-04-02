@@ -25,6 +25,8 @@ pub enum Token {
     KwAs,
     /// The `do` keyword.
     KwDo,
+    /// The `else` keyword.
+    KwElse,
     /// The `for` keyword.
     KwFor,
     /// The `if` keyword.
