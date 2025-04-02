@@ -249,6 +249,7 @@ impl<'a> Lexer<'a> {
             //-------------------------------------------------------------------------------------
             [Some('#'), ..] => self.advance_by_and_emit(1, Token::Hash),
             [Some('%'), ..] => self.advance_by_and_emit(1, Token::Percent),
+            [Some('&'), Some('['), ..] => self.advance_by_and_emit(2, Token::AmpLeftSquare),
             [Some('&'), Some('&'), ..] => self.advance_by_and_emit(2, Token::AmpAmp),
             [Some('('), ..] => self.advance_by_and_emit(1, Token::LeftParen),
             [Some(')'), ..] => self.advance_by_and_emit(1, Token::RightParen),
@@ -722,6 +723,7 @@ mod tests {
         scan!("}", ok: Token::RightBrace);
         scan!("]", ok: Token::RightSquare);
         scan!(")", ok: Token::RightParen);
+        scan!("&[", ok: Token::AmpLeftSquare);
         scan!("@[", ok: Token::AtLeftSquare);
         scan!("&&", ok: Token::AmpAmp);
         scan!(",", ok: Token::Comma);
