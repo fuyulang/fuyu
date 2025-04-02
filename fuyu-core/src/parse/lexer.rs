@@ -247,6 +247,7 @@ impl<'a> Lexer<'a> {
             //-------------------------------------------------------------------------------------
             // Operators and punctuation.
             //-------------------------------------------------------------------------------------
+            [Some('#'), ..] => self.advance_by_and_emit(1, Token::Hash),
             [Some('%'), ..] => self.advance_by_and_emit(1, Token::Percent),
             [Some('('), ..] => self.advance_by_and_emit(1, Token::LeftParen),
             [Some(')'), ..] => self.advance_by_and_emit(1, Token::RightParen),
@@ -689,16 +690,8 @@ mod tests {
                 BOM.len_utf8() + 3
             )))
         );
-        // Invalid.
-        scan!(" #!x\na", Some(Err((1, LexicalError::Char, 2))));
-        scan!(
-            "\u{feff} #!x\na",
-            Some(Err((
-                BOM.len_utf8() + 1,
-                LexicalError::Char,
-                BOM.len_utf8() + 2
-            )))
-        );
+        // Not a shebang comment.
+        scan!(" #!x\na", Some(Ok((1, Token::Hash, 2))));
     }
 
     #[test]
@@ -737,6 +730,7 @@ mod tests {
         scan!("==", ok: Token::EqEq);
         scan!(">", ok: Token::Gt);
         scan!(">=", ok: Token::GtEq);
+        scan!("#", ok: Token::Hash);
         scan!("<", ok: Token::Lt);
         scan!("<=", ok: Token::LtEq);
         scan!("-", ok: Token::Minus);
