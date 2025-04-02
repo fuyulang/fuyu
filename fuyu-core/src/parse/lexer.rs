@@ -266,7 +266,6 @@ impl<'a> Lexer<'a> {
             [Some('<'), Some('='), ..] => self.advance_by_and_emit(2, Token::LtEq),
             [Some('<'), ..] => self.advance_by_and_emit(2, Token::Lt),
             [Some('='), Some('='), ..] => self.advance_by_and_emit(2, Token::EqEq),
-            [Some('='), Some('>'), ..] => self.advance_by_and_emit(2, Token::EqGt),
             [Some('='), ..] => self.advance_by_and_emit(1, Token::Eq),
             [Some('>'), Some('='), ..] => self.advance_by_and_emit(2, Token::GtEq),
             [Some('>'), ..] => self.advance_by_and_emit(1, Token::Gt),
@@ -734,7 +733,6 @@ mod tests {
         scan!("..", ok: Token::DotDot);
         scan!("=", ok: Token::Eq);
         scan!("==", ok: Token::EqEq);
-        scan!("=>", ok: Token::EqGt);
         scan!(">", ok: Token::Gt);
         scan!(">=", ok: Token::GtEq);
         scan!("<", ok: Token::Lt);

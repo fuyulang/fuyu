@@ -103,8 +103,6 @@ pub enum Token {
     Eq,
     /// `==`.
     EqEq,
-    /// `=>`.
-    EqGt,
     /// `>`.
     Gt,
     /// `>=`.
