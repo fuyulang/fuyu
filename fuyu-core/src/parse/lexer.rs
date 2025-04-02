@@ -274,6 +274,7 @@ impl<'a> Lexer<'a> {
             [Some('['), ..] => self.advance_by_and_emit(1, Token::LeftSquare),
             [Some(']'), ..] => self.advance_by_and_emit(1, Token::RightSquare),
             [Some('{'), ..] => self.advance_by_and_emit(1, Token::LeftBrace),
+            [Some('|'), Some('|'), ..] => self.advance_by_and_emit(2, Token::PipePipe),
             [Some('|'), ..] => self.advance_by_and_emit(1, Token::Pipe),
             [Some('}'), ..] => self.advance_by_and_emit(1, Token::RightBrace),
             [Some('@'), Some('['), ..] => self.advance_by_and_emit(2, Token::AtLeftSquare),
@@ -745,6 +746,7 @@ mod tests {
         scan!("->", ok: Token::MinusGt);
         scan!("%", ok: Token::Percent);
         scan!("|", ok: Token::Pipe);
+        scan!("||", ok: Token::PipePipe);
         scan!("+", ok: Token::Plus);
         scan!(";", ok: Token::Semicolon);
         scan!("/", ok: Token::Slash);
