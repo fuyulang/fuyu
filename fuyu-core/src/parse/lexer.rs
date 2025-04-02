@@ -276,10 +276,10 @@ impl<'a> Lexer<'a> {
             [Some('['), ..] => self.advance_by_and_emit(1, Token::LeftSquare),
             [Some('\\'), ..] => self.advance_by_and_emit(1, Token::BackSlash),
             [Some(']'), ..] => self.advance_by_and_emit(1, Token::RightSquare),
-            [Some('{'), ..] => self.advance_by_and_emit(1, Token::LeftBrace),
+            [Some('{'), ..] => self.advance_by_and_emit(1, Token::LeftBrace(None)),
             [Some('|'), Some('|'), ..] => self.advance_by_and_emit(2, Token::PipePipe),
             [Some('|'), ..] => self.advance_by_and_emit(1, Token::Pipe),
-            [Some('}'), ..] => self.advance_by_and_emit(1, Token::RightBrace),
+            [Some('}'), ..] => self.advance_by_and_emit(1, Token::RightBrace(None)),
             //-------------------------------------------------------------------------------------
             // Numbers.
             //-------------------------------------------------------------------------------------
@@ -720,10 +720,10 @@ mod tests {
 
     #[test]
     fn scan_operators_and_punctuation() {
-        scan!("{", ok: Token::LeftBrace);
+        scan!("{", ok: Token::LeftBrace(None));
         scan!("[", ok: Token::LeftSquare);
         scan!("(", ok: Token::LeftParen);
-        scan!("}", ok: Token::RightBrace);
+        scan!("}", ok: Token::RightBrace(None));
         scan!("]", ok: Token::RightSquare);
         scan!(")", ok: Token::RightParen);
         scan!("&[", ok: Token::AmpLeftSquare);
