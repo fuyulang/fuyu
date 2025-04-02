@@ -59,6 +59,8 @@ pub enum Token {
     KwUnreachable,
     /// The `use` keyword.
     KwUse,
+    /// The `when` keyword.
+    KwWhen,
     /// A binary literal integer prefixed with `0b`.
     BinInt,
     /// An octal literal integer prefixed with `0o`.

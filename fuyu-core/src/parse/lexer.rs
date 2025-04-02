@@ -378,6 +378,7 @@ impl<'a> Lexer<'a> {
                     "unimplemented" => self.emit(Token::KwUnimplemented),
                     "unreachable" => self.emit(Token::KwUnreachable),
                     "use" => self.emit(Token::KwUse),
+                    "when" => self.emit(Token::KwWhen),
                     // If not a keyword then this must be an identifier.
                     "_" => self.emit(Token::Underscore),
                     ident => {
@@ -920,6 +921,7 @@ mod tests {
         scan!("unimplemented", ok: Token::KwUnimplemented);
         scan!("unreachable", ok: Token::KwUnreachable);
         scan!("use", ok: Token::KwUse);
+        scan!("when", ok: Token::KwWhen);
     }
 
     #[test]
