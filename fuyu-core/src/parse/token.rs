@@ -23,6 +23,8 @@ pub enum Token {
     Underscore,
     /// The `as` keyword.
     KwAs,
+    /// The `do` keyword.
+    KwDo,
     /// The `for` keyword.
     KwFor,
     /// The `if` keyword.
