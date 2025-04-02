@@ -97,8 +97,8 @@ pub enum Token {
     RightParen,
     /// `&[`
     AmpLeftSquare,
-    /// `@[`
-    AtLeftSquare,
+    /// `#[`
+    HashLeftSquare,
     /// `&&`.
     AmpAmp,
     /// `@`.

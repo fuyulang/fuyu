@@ -247,10 +247,11 @@ impl<'a> Lexer<'a> {
             //-------------------------------------------------------------------------------------
             // Operators and punctuation.
             //-------------------------------------------------------------------------------------
+            [Some('#'), Some('['), ..] => self.advance_by_and_emit(2, Token::HashLeftSquare),
             [Some('#'), ..] => self.advance_by_and_emit(1, Token::Hash),
             [Some('%'), ..] => self.advance_by_and_emit(1, Token::Percent),
-            [Some('&'), Some('['), ..] => self.advance_by_and_emit(2, Token::AmpLeftSquare),
             [Some('&'), Some('&'), ..] => self.advance_by_and_emit(2, Token::AmpAmp),
+            [Some('&'), Some('['), ..] => self.advance_by_and_emit(2, Token::AmpLeftSquare),
             [Some('('), ..] => self.advance_by_and_emit(1, Token::LeftParen),
             [Some(')'), ..] => self.advance_by_and_emit(1, Token::RightParen),
             [Some('*'), Some('*'), ..] => self.advance_by_and_emit(2, Token::StarStar),
@@ -271,15 +272,14 @@ impl<'a> Lexer<'a> {
             [Some('='), ..] => self.advance_by_and_emit(1, Token::Eq),
             [Some('>'), Some('='), ..] => self.advance_by_and_emit(2, Token::GtEq),
             [Some('>'), ..] => self.advance_by_and_emit(1, Token::Gt),
+            [Some('@'), ..] => self.advance_by_and_emit(1, Token::At),
             [Some('['), ..] => self.advance_by_and_emit(1, Token::LeftSquare),
+            [Some('\\'), ..] => self.advance_by_and_emit(1, Token::BackSlash),
             [Some(']'), ..] => self.advance_by_and_emit(1, Token::RightSquare),
             [Some('{'), ..] => self.advance_by_and_emit(1, Token::LeftBrace),
             [Some('|'), Some('|'), ..] => self.advance_by_and_emit(2, Token::PipePipe),
             [Some('|'), ..] => self.advance_by_and_emit(1, Token::Pipe),
             [Some('}'), ..] => self.advance_by_and_emit(1, Token::RightBrace),
-            [Some('@'), Some('['), ..] => self.advance_by_and_emit(2, Token::AtLeftSquare),
-            [Some('@'), ..] => self.advance_by_and_emit(1, Token::At),
-            [Some('\\'), ..] => self.advance_by_and_emit(1, Token::BackSlash),
             //-------------------------------------------------------------------------------------
             // Numbers.
             //-------------------------------------------------------------------------------------
@@ -727,7 +727,7 @@ mod tests {
         scan!("]", ok: Token::RightSquare);
         scan!(")", ok: Token::RightParen);
         scan!("&[", ok: Token::AmpLeftSquare);
-        scan!("@[", ok: Token::AtLeftSquare);
+        scan!("#[", ok: Token::HashLeftSquare);
         scan!("&&", ok: Token::AmpAmp);
         scan!("@", ok: Token::At);
         scan!("\\", ok: Token::BackSlash);
