@@ -93,8 +93,6 @@ pub enum Token {
     Comma,
     /// `:`.
     Colon,
-    /// `::`.
-    ColonColon,
     /// `.`.
     Dot,
     /// `..`.
