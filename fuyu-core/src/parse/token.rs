@@ -113,6 +113,8 @@ pub enum Token {
     Gt,
     /// `>=`.
     GtEq,
+    /// `#`.
+    Hash,
     /// `<`.
     Lt,
     /// `<=`.
