@@ -278,6 +278,7 @@ impl<'a> Lexer<'a> {
             [Some('}'), ..] => self.advance_by_and_emit(1, Token::RightBrace),
             [Some('@'), Some('['), ..] => self.advance_by_and_emit(2, Token::AtLeftSquare),
             [Some('@'), ..] => self.advance_by_and_emit(1, Token::At),
+            [Some('\\'), ..] => self.advance_by_and_emit(1, Token::BackSlash),
             //-------------------------------------------------------------------------------------
             // Numbers.
             //-------------------------------------------------------------------------------------
@@ -728,6 +729,7 @@ mod tests {
         scan!("@[", ok: Token::AtLeftSquare);
         scan!("&&", ok: Token::AmpAmp);
         scan!("@", ok: Token::At);
+        scan!("\\", ok: Token::BackSlash);
         scan!(",", ok: Token::Comma);
         scan!(":", ok: Token::Colon);
         scan!(".", ok: Token::Dot);
