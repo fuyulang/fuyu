@@ -360,6 +360,7 @@ impl<'a> Lexer<'a> {
                 match self.as_marked_str() {
                     // Keywords.
                     "as" => self.emit(Token::KwAs),
+                    "do" => self.emit(Token::KwDo),
                     "for" => self.emit(Token::KwFor),
                     "if" => self.emit(Token::KwIf),
                     "immediate" => self.emit(Token::KwImmediate),
@@ -899,6 +900,7 @@ mod tests {
     #[test]
     fn scan_keywords() {
         scan!("as", ok: Token::KwAs);
+        scan!("do", ok: Token::KwDo);
         scan!("for", ok: Token::KwFor);
         scan!("if", ok: Token::KwIf);
         scan!("immediate", ok: Token::KwImmediate);
