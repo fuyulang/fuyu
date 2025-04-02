@@ -361,6 +361,7 @@ impl<'a> Lexer<'a> {
                     // Keywords.
                     "as" => self.emit(Token::KwAs),
                     "do" => self.emit(Token::KwDo),
+                    "else" => self.emit(Token::KwElse),
                     "for" => self.emit(Token::KwFor),
                     "if" => self.emit(Token::KwIf),
                     "immediate" => self.emit(Token::KwImmediate),
@@ -901,6 +902,7 @@ mod tests {
     fn scan_keywords() {
         scan!("as", ok: Token::KwAs);
         scan!("do", ok: Token::KwDo);
+        scan!("else", ok: Token::KwElse);
         scan!("for", ok: Token::KwFor);
         scan!("if", ok: Token::KwIf);
         scan!("immediate", ok: Token::KwImmediate);
