@@ -45,6 +45,8 @@ pub enum Token {
     KwRequire,
     /// The `return` keyword.
     KwReturn,
+    /// The `then` keyword.
+    KwThen,
     /// The `todo` keyword.
     KwTodo,
     /// The `try` keyword.
