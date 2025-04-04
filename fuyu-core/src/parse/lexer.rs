@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::parse::{ByteIdx, Text, Token};
-use std::iter;
+use crate::parse::{ByteIdx, Text, TextChars, Token};
+use std::collections::VecDeque;
+use std::iter::FusedIterator;
 use std::str::Chars;
-
-/// The Unicode byte order mark (BOM).
-const BOM: char = '\u{feff}';
-
-/// The lexer looks ahead by 3 tokens.
-const LOOKAHEAD: usize = 3;
 
 /// The `Lexer` produces an iterator of [`Spanned`] [`Token`]s from a source [`Text`].
 #[derive(Debug)]
@@ -16,18 +11,17 @@ pub struct Lexer<'a> {
     /// The source text.
     text: &'a Text,
     /// An iterator over the characters in the source text.
-    chars: Chars<'a>,
-    /// The lexer works based on a window of [`LOOKAHEAD`] characters.
-    ///
-    /// The first character in the window (i.e., `window[0]`) is considered the next character in the source.
-    window: [Option<char>; LOOKAHEAD],
-    /// The current position of the iterator.
-    idx: ByteIdx,
+    text_chars: TextChars<'a>,
     /// The marked start index (inclusive) that tracks the start of a marked region (e.g., token in
     /// a lexer).
     ///
-    /// It is guaranteed that `idx >= mark_idx`.
+    /// It is guaranteed that `self.text_chars.idx() >= self.mark_idx`.
     mark_idx: ByteIdx,
+    // TODO: Use this to (1) track indentation and (2) emit `{`, `}`, and `;`.
+    /// The indentations tracked by the lexer.
+    indent_stack: Vec<usize>,
+    /// Queued tokens to emit from the iterator the next time it is advanced.
+    queued: VecDeque<Spanned>,
 }
 
 /// The values that are produced by the [`Lexer`].
@@ -95,7 +89,7 @@ macro_rules! scan_int {
             return $lexer.emit_error(LexicalError::Number);
         }
         $lexer.advance_while(pat!($pattern | '_'));
-        if !$lexer.window[0].map_or(false, is_text_like) {
+        if !$lexer.peek().map_or(false, is_text_like) {
             $lexer.emit($kind)
         } else {
             $lexer.advance_while(is_text_like);
@@ -109,40 +103,58 @@ impl<'a> Lexer<'a> {
     pub fn new(text: &'a Text) -> Self {
         let mut lexer = Self {
             text,
-            chars: text.as_str().chars(),
-            window: [None; LOOKAHEAD],
-            idx: 0,
+            text_chars: TextChars::new(text),
             mark_idx: 0,
+            indent_stack: vec![],
+            queued: VecDeque::new(),
         };
-        // Fill the window.
-        for i in 0..LOOKAHEAD {
-            lexer.window[i] = lexer.chars.next();
-        }
-        // The BOM is skipped so nothing else has to deal with it.
-        lexer.advance_if(pat!(BOM));
+        // The index might not start at 0.
         lexer.mark();
+        // Queue up the shebang comment here instead of the main loop since it can appear only at the start.
+        if lexer.peek_pair() == (Some('#'), Some('!')) {
+            lexer.advance_until(pat!('\n'));
+            lexer.emit_queue(Token::ShebangComment);
+        }
         lexer
+    }
+
+    /// Shorthand for accessing the index.
+    fn idx(&self) -> usize {
+        self.text_chars.idx()
     }
 
     /// Set the mark index to the current index.
     fn mark(&mut self) {
-        self.mark_idx = self.idx;
+        self.mark_idx = self.idx();
     }
 
     /// Get the string from the mark index (inclusive) to the current index (exclusive).
     fn as_marked_str(&self) -> &str {
-        &self.text.as_str()[self.mark_idx..self.idx]
+        &self.text.as_str()[self.mark_idx..self.idx()]
+    }
+
+    /// Peek the next character without advancing.
+    fn peek(&mut self) -> Option<char> {
+        self.text_chars.peek()
+    }
+
+    /// Peek the next two characters without advancing.
+    fn peek_pair(&mut self) -> (Option<char>, Option<char>) {
+        (self.text_chars.peek_nth(0), self.text_chars.peek_nth(1))
+    }
+
+    /// Peek the next three characters without advancing.
+    fn peek_triplet(&mut self) -> (Option<char>, Option<char>, Option<char>) {
+        (
+            self.text_chars.peek_nth(0),
+            self.text_chars.peek_nth(1),
+            self.text_chars.peek_nth(2),
+        )
     }
 
     /// Move the lexer ahead by one character.
     fn advance(&mut self) {
-        // Update the position.
-        if let Some(c) = self.window[0] {
-            self.idx += c.len_utf8();
-        }
-        // Shift the next character into the window.
-        self.window.rotate_left(1);
-        self.window[LOOKAHEAD - 1] = self.chars.next();
+        self.text_chars.next();
     }
 
     /// Call [`Self::advance()`] `n` times.
@@ -162,7 +174,7 @@ impl<'a> Lexer<'a> {
     where
         P: Fn(char) -> bool,
     {
-        self.window[0]
+        self.peek()
             .is_some_and(pred)
             .then(|| self.advance())
             .is_some()
@@ -196,7 +208,13 @@ impl<'a> Lexer<'a> {
 
     /// Create a token that spans from the marked start index to the current index.
     fn emit(&mut self, kind: Token) -> Option<Spanned> {
-        Some(Ok((self.mark_idx, kind, self.idx)))
+        Some(Ok((self.mark_idx, kind, self.idx())))
+    }
+
+    /// Create a token that spans from the marked start index to the current index and push it on
+    /// to the queue.
+    fn emit_queue(&mut self, kind: Token) {
+        self.queued.push_back(Ok((self.mark_idx, kind, self.idx())));
     }
 
     /// Advance the lexer by `n` characters and then [`Self::emit()`] a token of the given `kind`.
@@ -207,18 +225,7 @@ impl<'a> Lexer<'a> {
 
     /// Create an error that spans from the marked start index to the current index.
     fn emit_error(&mut self, error: LexicalError) -> Option<Spanned> {
-        Some(Err((self.mark_idx, error, self.idx)))
-    }
-
-    /// Check if a [`Token::ShebangComment`] is allowed at the current location.
-    fn shebang_comment_location(&self) -> bool {
-        // Check if the current location is at the start of the text.
-        if self.idx == 0 {
-            return true;
-        }
-        // Check if the current location is at the second character in the text and the first
-        // character was a BOM.
-        self.idx == BOM.len_utf8() && self.text.as_str().starts_with('\u{feff}')
+        Some(Err((self.mark_idx, error, self.idx())))
     }
 
     /// Produce the next token and advance the lexer.
@@ -226,73 +233,72 @@ impl<'a> Lexer<'a> {
     /// This returns `None` at the end of the source text, and once `None` is returned, it will
     /// always return `None` on subsequent calls.
     fn scan(&mut self) -> Option<Spanned> {
+        if !self.queued.is_empty() {
+            return self.queued.pop_front();
+        }
         self.advance_while(char::is_whitespace);
         self.mark();
-        match self.window {
+        match self.peek_triplet() {
             //-------------------------------------------------------------------------------------
             // Comments.
             //-------------------------------------------------------------------------------------
-            [Some('#'), Some('!'), ..] if self.shebang_comment_location() => {
-                self.advance_until(pat!('\n'));
-                self.emit(Token::ShebangComment)
-            }
-            [Some('/'), Some('/'), Some('/'), ..] => {
+            (Some('/'), Some('/'), Some('/'), ..) => {
                 self.advance_until(pat!('\n'));
                 self.emit(Token::DocComment)
             }
-            [Some('/'), Some('/'), ..] => {
+            (Some('/'), Some('/'), ..) => {
                 self.advance_until(pat!('\n'));
                 self.emit(Token::LineComment)
             }
             //-------------------------------------------------------------------------------------
             // Operators and punctuation.
             //-------------------------------------------------------------------------------------
-            [Some('#'), Some('['), ..] => self.advance_by_and_emit(2, Token::HashLeftSquare),
-            [Some('#'), ..] => self.advance_by_and_emit(1, Token::Hash),
-            [Some('%'), ..] => self.advance_by_and_emit(1, Token::Percent),
-            [Some('&'), Some('&'), ..] => self.advance_by_and_emit(2, Token::AmpAmp),
-            [Some('&'), Some('['), ..] => self.advance_by_and_emit(2, Token::AmpLeftSquare),
-            [Some('('), ..] => self.advance_by_and_emit(1, Token::LeftParen),
-            [Some(')'), ..] => self.advance_by_and_emit(1, Token::RightParen),
-            [Some('*'), Some('*'), ..] => self.advance_by_and_emit(2, Token::StarStar),
-            [Some('*'), ..] => self.advance_by_and_emit(1, Token::Star),
-            [Some('+'), ..] => self.advance_by_and_emit(1, Token::Plus),
-            [Some(','), ..] => self.advance_by_and_emit(1, Token::Comma),
-            [Some('-'), Some('>'), ..] => self.advance_by_and_emit(2, Token::MinusGt),
-            [Some('-'), ..] => self.advance_by_and_emit(1, Token::Minus),
-            [Some('.'), Some('.'), ..] => self.advance_by_and_emit(2, Token::DotDot),
-            [Some('.'), ..] => self.advance_by_and_emit(1, Token::Dot),
-            [Some('/'), Some('='), ..] => self.advance_by_and_emit(2, Token::SlashEq),
-            [Some('/'), ..] => self.advance_by_and_emit(1, Token::Slash),
-            [Some(':'), ..] => self.advance_by_and_emit(1, Token::Colon),
-            [Some(';'), ..] => self.advance_by_and_emit(1, Token::Semicolon),
-            [Some('<'), Some('='), ..] => self.advance_by_and_emit(2, Token::LtEq),
-            [Some('<'), ..] => self.advance_by_and_emit(2, Token::Lt),
-            [Some('='), Some('='), ..] => self.advance_by_and_emit(2, Token::EqEq),
-            [Some('='), ..] => self.advance_by_and_emit(1, Token::Eq),
-            [Some('>'), Some('='), ..] => self.advance_by_and_emit(2, Token::GtEq),
-            [Some('>'), ..] => self.advance_by_and_emit(1, Token::Gt),
-            [Some('@'), ..] => self.advance_by_and_emit(1, Token::At),
-            [Some('['), ..] => self.advance_by_and_emit(1, Token::LeftSquare),
-            [Some('\\'), ..] => self.advance_by_and_emit(1, Token::BackSlash),
-            [Some(']'), ..] => self.advance_by_and_emit(1, Token::RightSquare),
-            [Some('{'), ..] => self.advance_by_and_emit(1, Token::LeftBrace(None)),
-            [Some('|'), Some('|'), ..] => self.advance_by_and_emit(2, Token::PipePipe),
-            [Some('|'), ..] => self.advance_by_and_emit(1, Token::Pipe),
-            [Some('}'), ..] => self.advance_by_and_emit(1, Token::RightBrace(None)),
+            (Some('#'), Some('['), ..) => self.advance_by_and_emit(2, Token::HashLeftSquare),
+            (Some('#'), ..) => self.advance_by_and_emit(1, Token::Hash),
+            (Some('%'), ..) => self.advance_by_and_emit(1, Token::Percent),
+            (Some('&'), Some('&'), ..) => self.advance_by_and_emit(2, Token::AmpAmp),
+            (Some('&'), Some('['), ..) => self.advance_by_and_emit(2, Token::AmpLeftSquare),
+            (Some('('), ..) => self.advance_by_and_emit(1, Token::LeftParen),
+            (Some(')'), ..) => self.advance_by_and_emit(1, Token::RightParen),
+            (Some('*'), Some('*'), ..) => self.advance_by_and_emit(2, Token::StarStar),
+            (Some('*'), ..) => self.advance_by_and_emit(1, Token::Star),
+            (Some('+'), ..) => self.advance_by_and_emit(1, Token::Plus),
+            (Some(','), ..) => self.advance_by_and_emit(1, Token::Comma),
+            (Some('-'), Some('>'), ..) => self.advance_by_and_emit(2, Token::MinusGt),
+            (Some('-'), ..) => self.advance_by_and_emit(1, Token::Minus),
+            (Some('.'), Some('.'), ..) => self.advance_by_and_emit(2, Token::DotDot),
+            (Some('.'), ..) => self.advance_by_and_emit(1, Token::Dot),
+            (Some('/'), Some('='), ..) => self.advance_by_and_emit(2, Token::SlashEq),
+            (Some('/'), ..) => self.advance_by_and_emit(1, Token::Slash),
+            (Some(':'), ..) => self.advance_by_and_emit(1, Token::Colon),
+            (Some(';'), ..) => self.advance_by_and_emit(1, Token::Semicolon),
+            (Some('<'), Some('='), ..) => self.advance_by_and_emit(2, Token::LtEq),
+            (Some('<'), ..) => self.advance_by_and_emit(2, Token::Lt),
+            (Some('='), Some('='), ..) => self.advance_by_and_emit(2, Token::EqEq),
+            (Some('='), ..) => self.advance_by_and_emit(1, Token::Eq),
+            (Some('>'), Some('='), ..) => self.advance_by_and_emit(2, Token::GtEq),
+            (Some('>'), ..) => self.advance_by_and_emit(1, Token::Gt),
+            (Some('@'), ..) => self.advance_by_and_emit(1, Token::At),
+            (Some('['), ..) => self.advance_by_and_emit(1, Token::LeftSquare),
+            (Some('\\'), ..) => self.advance_by_and_emit(1, Token::BackSlash),
+            (Some(']'), ..) => self.advance_by_and_emit(1, Token::RightSquare),
+            (Some('{'), ..) => self.advance_by_and_emit(1, Token::LeftBrace(None)),
+            (Some('|'), Some('|'), ..) => self.advance_by_and_emit(2, Token::PipePipe),
+            (Some('|'), ..) => self.advance_by_and_emit(1, Token::Pipe),
+            (Some('}'), ..) => self.advance_by_and_emit(1, Token::RightBrace(None)),
             //-------------------------------------------------------------------------------------
             // Numbers.
             //-------------------------------------------------------------------------------------
-            [Some('0'), Some('b'), ..] => scan_int!(self, '0'..='1', Token::BinInt),
-            [Some('0'), Some('o'), ..] => scan_int!(self, '0'..='7', Token::OctInt),
-            [Some('0'), Some('x'), ..] => {
+            (Some('0'), Some('b'), ..) => scan_int!(self, '0'..='1', Token::BinInt),
+            (Some('0'), Some('o'), ..) => scan_int!(self, '0'..='7', Token::OctInt),
+            (Some('0'), Some('x'), ..) => {
                 scan_int!(self, '0'..='9' | 'A'..='F' | 'a'..='f', Token::HexInt)
             }
-            [Some('0'), Some('B' | 'O' | 'X'), ..] => {
+            (Some('0'), Some('B' | 'O' | 'X'), ..) => {
                 self.advance_while(is_text_like);
                 self.emit_error(LexicalError::BaseMarker)
             }
-            [Some('0'..='9'), ..] => {
+            (Some('0'..='9'), ..) => {
                 // Decimal number.
                 // Assume the number is an integer until proven otherwise.
                 let mut kind_or_error = Ok(Token::DecInt);
@@ -311,13 +317,13 @@ impl<'a> Lexer<'a> {
                 // least one character.
                 self.advance_while(pat!('0'..='9' | '_'));
                 // Phase 2: (\.\d[_\d]*)?
-                if matches!(self.window, [Some('.'), Some('0'..='9'), ..]) {
+                if matches!(self.peek_pair(), (Some('.'), Some('0'..='9'))) {
                     kind_or_error = Ok(Token::Float);
                     self.advance(); // Consume '.'.
                     self.advance_while(pat!('0'..='9' | '_'));
                 }
                 // Phase 3: (e[+-]?\d[_\d]*)?
-                if matches!(self.window, [Some('e'), ..]) {
+                if self.peek() == Some('e') {
                     kind_or_error = Ok(Token::Float);
                     self.advance(); // Consume `e`.
                     if self.advance_while(pat!('_')) > 0 {
@@ -329,7 +335,7 @@ impl<'a> Lexer<'a> {
                     }
                     self.advance_while(pat!('0'..='9' | '_'));
                 }
-                if self.window[0].is_some_and(is_text_like) {
+                if self.peek().is_some_and(is_text_like) {
                     kind_or_error = Err(LexicalError::Number);
                     self.advance_while(is_text_like);
                 }
@@ -341,15 +347,15 @@ impl<'a> Lexer<'a> {
             //-------------------------------------------------------------------------------------
             // Strings.
             //-------------------------------------------------------------------------------------
-            [Some('"'), Some('"'), Some('"'), ..] => {
+            (Some('"'), Some('"'), Some('"'), ..) => {
                 self.advance_by(3); // Consume `"""`.
                 self.scan_string(Token::BlockString, 3, 0, true)
             }
-            [Some('"'), ..] => {
+            (Some('"'), ..) => {
                 self.advance(); // Consume `"`.
                 self.scan_string(Token::String, 1, 0, true)
             }
-            [Some('r'), Some('"'), ..] | [Some('r'), Some('#'), Some('#' | '"'), ..] => {
+            (Some('r'), Some('"'), ..) | (Some('r'), Some('#'), Some('#' | '"'), ..) => {
                 self.advance(); // Consume `r`.
                 let hashes = self.advance_while(pat!('#'));
                 if !self.advance_if(pat!('"')) {
@@ -361,7 +367,7 @@ impl<'a> Lexer<'a> {
             //-------------------------------------------------------------------------------------
             // Identifiers and keywords.
             //-------------------------------------------------------------------------------------
-            [Some('A'..='Z' | 'a'..='z' | '_'), ..] => {
+            (Some('A'..='Z' | 'a'..='z' | '_'), ..) => {
                 self.advance_while(|c| is_text_like(c) || c == '#');
                 match self.as_marked_str() {
                     // Keywords.
@@ -419,12 +425,12 @@ impl<'a> Lexer<'a> {
             // Other.
             //-------------------------------------------------------------------------------------
             // Illegal character to start a token.
-            [Some(_), ..] => {
+            (Some(_), ..) => {
                 self.advance();
                 self.emit_error(LexicalError::Char)
             }
             // All done.
-            [None, ..] => None,
+            (None, ..) => None,
         }
     }
 
@@ -445,20 +451,21 @@ impl<'a> Lexer<'a> {
         escapes: bool,
     ) -> Option<Spanned> {
         loop {
-            if matches!(self.window, [None, ..]) {
+            if self.peek().is_none() {
                 return self.emit_error(LexicalError::UnclosedString);
             }
             // Advance the lexer until it is sitting on a `"` that can start the closing delimiter.
             if escapes {
                 // Advance to the next string-like terminator or escape.
                 self.advance_until(pat!('"' | '\\'));
-                match self.window {
-                    [Some('"'), ..] => { /* Do nothing. */ }
-                    [Some('\\'), ..] => {
+                match self.peek() {
+                    Some('"') => { /* Do nothing. */ }
+                    Some('\\') => {
+                        // TODO: Need more advanced logic. What about `\u{...}` escapes?
                         self.advance_by(2); // Skip the escape (e.g., the sequence `\"`).
                         continue;
                     }
-                    [None, ..] => continue, // End of input.
+                    None => continue, // End of input.
                     _ => unreachable!(),
                 }
             } else {
@@ -487,7 +494,7 @@ impl Iterator for Lexer<'_> {
     }
 }
 
-impl iter::FusedIterator for Lexer<'_> {}
+impl FusedIterator for Lexer<'_> {}
 
 #[cfg(test)]
 mod tests {
@@ -524,34 +531,35 @@ mod tests {
 
     #[test]
     fn new() {
-        lexer!(lexer <- "abc");
+        lexer!(mut lexer <- "abc");
         assert_eq!(lexer.text.as_str(), "abc");
-        assert_eq!(lexer.window, [Some('a'), Some('b'), Some('c')]);
-        assert_eq!(lexer.idx, 0);
+        assert_eq!(lexer.peek(), Some('a'));
+        assert_eq!(lexer.idx(), 0);
         assert_eq!(lexer.mark_idx, 0);
         assert_eq!(lexer.text.as_str(), "abc");
     }
 
     #[test]
     fn new_with_bom() {
-        lexer!(lexer <- "\u{feff}abc");
+        // The byte order mark is U+FEFF.
+        lexer!(mut lexer <- "\u{feff}abc");
         assert_eq!(lexer.text.as_str(), "\u{feff}abc");
-        assert_eq!(lexer.window, [Some('a'), Some('b'), Some('c')]);
-        assert_eq!(lexer.idx, BOM.len_utf8());
-        assert_eq!(lexer.mark_idx, BOM.len_utf8());
+        assert_eq!(lexer.peek(), Some('a'));
+        assert_eq!(lexer.idx(), '\u{feff}'.len_utf8());
+        assert_eq!(lexer.mark_idx, '\u{feff}'.len_utf8());
         assert_eq!(lexer.text.as_str(), "\u{feff}abc");
     }
 
     #[test]
     fn mark() {
         lexer!(mut lexer <- "abcdef");
-        assert_eq!(lexer.idx, 0);
+        assert_eq!(lexer.idx(), 0);
         assert_eq!(lexer.mark_idx, 0);
         lexer.advance();
-        assert_eq!(lexer.idx, 1);
+        assert_eq!(lexer.idx(), 1);
         assert_eq!(lexer.mark_idx, 0);
         lexer.mark();
-        assert_eq!(lexer.idx, 1);
+        assert_eq!(lexer.idx(), 1);
         assert_eq!(lexer.mark_idx, 1);
     }
 
@@ -571,28 +579,28 @@ mod tests {
     #[test]
     fn advance() {
         lexer!(mut lexer <- "abc");
-        assert_eq!(lexer.idx, 0);
-        assert_eq!(lexer.window, [Some('a'), Some('b'), Some('c')]);
+        assert_eq!(lexer.idx(), 0);
+        assert_eq!(lexer.peek(), Some('a'));
         lexer.advance();
-        assert_eq!(lexer.idx, 1);
-        assert_eq!(lexer.window, [Some('b'), Some('c'), None]);
+        assert_eq!(lexer.idx(), 1);
+        assert_eq!(lexer.peek(), Some('b'));
         lexer.advance();
-        assert_eq!(lexer.idx, 2);
-        assert_eq!(lexer.window, [Some('c'), None, None]);
+        assert_eq!(lexer.idx(), 2);
+        assert_eq!(lexer.peek(), Some('c'));
         lexer.advance();
-        assert_eq!(lexer.idx, 3);
-        assert_eq!(lexer.window, [None, None, None]);
+        assert_eq!(lexer.idx(), 3);
+        assert_eq!(lexer.peek(), None);
         lexer.advance();
         // Test idempotency.
-        assert_eq!(lexer.idx, 3);
-        assert_eq!(lexer.window, [None, None, None]);
+        assert_eq!(lexer.idx(), 3);
+        assert_eq!(lexer.peek(), None);
     }
 
     #[test]
     fn advance_by() {
         lexer!(mut lexer <- "abcdef");
         lexer.advance_by(3);
-        assert_eq!(lexer.idx, 3);
+        assert_eq!(lexer.idx(), 3);
     }
 
     #[test]
@@ -602,42 +610,42 @@ mod tests {
         // - U+001E8D (ẍ): Latin Extended Additional require 3 bytes in UTF-8.
         // - U+01D50D (𝔍): Mathematical Alphanumeric Symbols require 4 bytes in UTF-8.
         lexer!(mut lexer <- "\u{0041}\u{003B2}\u{001E8D}\u{01D50D}");
-        assert_eq!(lexer.idx, 0);
+        assert_eq!(lexer.idx(), 0);
         lexer.advance();
-        assert_eq!(lexer.idx, 1);
+        assert_eq!(lexer.idx(), 1);
         lexer.advance();
-        assert_eq!(lexer.idx, 3);
+        assert_eq!(lexer.idx(), 3);
         lexer.advance();
-        assert_eq!(lexer.idx, 6);
+        assert_eq!(lexer.idx(), 6);
         lexer.advance();
-        assert_eq!(lexer.idx, 10);
+        assert_eq!(lexer.idx(), 10);
     }
 
     #[test]
     fn advance_if() {
         lexer!(mut lexer <- "abcdef");
         lexer.advance_if(|_| false);
-        assert_eq!(lexer.idx, 0);
+        assert_eq!(lexer.idx(), 0);
         lexer.advance_if(|_| true);
-        assert_eq!(lexer.idx, 1);
+        assert_eq!(lexer.idx(), 1);
     }
 
     #[test]
     fn advance_while() {
         lexer!(mut lexer <- "abcdef");
         lexer.advance_while(|_| false);
-        assert_eq!(lexer.idx, 0);
+        assert_eq!(lexer.idx(), 0);
         lexer.advance_while(pat!('a'..='c'));
-        assert_eq!(lexer.idx, 3);
+        assert_eq!(lexer.idx(), 3);
     }
 
     #[test]
     fn advance_until() {
         lexer!(mut lexer <- "abcdef");
         lexer.advance_until(|_| true);
-        assert_eq!(lexer.idx, 0);
+        assert_eq!(lexer.idx(), 0);
         lexer.advance_until(pat!('d'..='f'));
-        assert_eq!(lexer.idx, 3);
+        assert_eq!(lexer.idx(), 3);
     }
 
     #[test]
@@ -667,34 +675,11 @@ mod tests {
     }
 
     #[test]
-    fn shebang_comment_location() {
-        lexer!(mut lexer <- "#!shebang");
-        assert!(lexer.shebang_comment_location());
-        lexer.advance();
-        assert!(!lexer.shebang_comment_location());
-    }
-
-    #[test]
-    fn shebang_comment_location_with_bom() {
-        lexer!(mut lexer <- "\u{feff}#!shebang");
-        assert!(lexer.shebang_comment_location());
-        lexer.advance();
-        assert!(!lexer.shebang_comment_location());
-    }
-
-    #[test]
     fn scan_shebang_comment() {
         // Valid.
         scan!("#!x", ok: Token::ShebangComment);
         scan!("#!x\na", Some(Ok((0, Token::ShebangComment, 3))));
-        scan!(
-            "\u{feff}#!x\na",
-            Some(Ok((
-                BOM.len_utf8(),
-                Token::ShebangComment,
-                BOM.len_utf8() + 3
-            )))
-        );
+        scan!("\u{feff}#!bom\na", Some(Ok((3, Token::ShebangComment, 8))));
         // Not a shebang comment.
         scan!(" #!x\na", Some(Ok((1, Token::Hash, 2))));
     }
@@ -992,7 +977,7 @@ mod tests {
 
     #[test]
     fn scan_illegal_char() {
-        // There are lots of illegal chars but only 2 are tested.
+        // There are lots of illegal chararacters, but only 2 are tested.
         scan!("$", err: LexicalError::Char);
         scan!("ä", err: LexicalError::Char);
     }
@@ -1000,7 +985,7 @@ mod tests {
     #[test]
     fn scan_eof() {
         scan!("", None);
-        scan!("\r\n \t", None);
+        scan!("\n \r\n ", None);
     }
 
     #[test]
