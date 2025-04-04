@@ -84,13 +84,21 @@ pub enum Token {
     /// The content is not checked for validity.
     RawString,
     /// `{`.
-    LeftBrace,
+    ///
+    /// The associated value is `None` if the brace appears in the source. When the brace is
+    /// inserted by the lexer, the value is `Some` with the 1-indexed indentation of the column
+    /// where the brace is inserted.
+    LeftBrace(Option<usize>),
     /// `[`.
     LeftSquare,
     /// `(`.
     LeftParen,
     /// `}`.
-    RightBrace,
+    ///
+    /// The associated value is `None` if the brace appears in the source. When the brace is
+    /// inserted by the lexer, the value is `Some` with the 1-indexed indentation of the column
+    /// of the matching automatically inserted [`LeftBrace`][Token::LeftBrace].
+    RightBrace(Option<usize>),
     /// `]`.
     RightSquare,
     /// `)`.

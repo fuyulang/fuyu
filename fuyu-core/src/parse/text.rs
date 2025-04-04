@@ -4,6 +4,9 @@
 //!
 //! [`Text`] is optimized for quick look ups of line and column position based on a [`ByteIdx`].
 
+use std::collections::VecDeque;
+use std::str::Chars;
+
 /// An index into a [`Text`] aligned at the byte level.
 ///
 /// Byte indices are used rather than `char` indices for performance.
@@ -117,6 +120,133 @@ pub struct LineCol {
     pub line: usize,
     /// The 0-indexed column.
     pub col: usize,
+}
+
+/// The Unicode byte order mark (BOM).
+const BOM: char = '\u{feff}';
+
+// TODO: Tests for this.
+/// An iterator over the characters of a [`Text`].
+///
+/// This iterator has some benefits that simplifies processing:
+///
+/// - The byte order mark (BOM) (U+FEFF) is automatically skipped if it is the first character.
+/// - Sequences of `\r\n` are collapsed into `\n`. The column is the location of the `\r`.
+///
+/// # 💀 Warning 💀
+///
+/// The current implementation of this iterator does not play "nice". It panics when any of the
+/// following are encountered:
+///
+/// - An `\r` not immediately followed by an `\n`.
+/// - Any `\t` (tabs are not allowed).
+/// - In general, any control character other than `\r` or `\n`.
+///
+/// These rules may be relaxed in the future, but for now are present to simplify error handling
+/// during developement.
+#[derive(Debug)]
+pub(super) struct TextChars<'a> {
+    /// The underlying iterator.
+    chars: Chars<'a>,
+    /// The characters that were peaked.
+    peaked: VecDeque<char>,
+    /// The byte index of the next character (if any) to be emitted.
+    idx: ByteIdx,
+    /// The 0-indexed column of the next character (if any) to be emitted.
+    ///
+    /// Columns are counted in Unicode scalars.
+    column: usize,
+}
+
+impl<'a> TextChars<'a> {
+    /// Create a new [`TextChars`] iterator over a [`Text`].
+    pub fn new(text: &'a Text) -> Self {
+        let mut text_chars = Self {
+            chars: text.as_str().chars(),
+            peaked: VecDeque::new(),
+            idx: 0,
+            column: 0,
+        };
+        // Skip the BOM.
+        if text_chars.peek() == Some(BOM) {
+            text_chars.next();
+        }
+        text_chars
+    }
+
+    /// Get the next character in the text.
+    ///
+    /// This pulls from the queue (if possible) before advancing the underlying iterator.
+    fn next_char(&mut self) -> Option<char> {
+        if !self.peaked.is_empty() {
+            self.peaked.pop_front()
+        } else {
+            self.chars.next()
+        }
+    }
+
+    /// Peek the next character in the text without advancing the iterator.
+    pub fn peek(&mut self) -> Option<char> {
+        self.peek_nth(0)
+    }
+
+    /// Peek the next character `n` positions ahead in the text without advancing the iterator.
+    pub fn peek_nth(&mut self, n: usize) -> Option<char> {
+        // Make sure that the peak buffer has at least `n` characters (unless the end of the
+        // iterator is encountered).
+        while n >= self.peaked.len() {
+            match self.chars.next() {
+                Some(c) => self.peaked.push_back(c),
+                None => return None,
+            }
+        }
+        // At this point it is guaranteed that `n < self.peaked.len()`.
+        Some(self.peaked[n])
+    }
+
+    /// The byte index of the next character (if any) to be emitted.
+    pub fn idx(&self) -> usize {
+        self.idx
+    }
+
+    /// The 0-indexed column of the next character (if any) to be emitted.
+    ///
+    /// Columns are counted in Unicode scalars.
+    pub fn column(&self) -> usize {
+        self.column
+    }
+}
+
+impl Iterator for TextChars<'_> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_char() {
+            // Tabs are specific enough to get their own special case.
+            Some('\t') => panic!("Tabs (U+0009) are illegal."),
+            // The only control characters that are allowed are `\r` and `\n`.
+            Some(c) if c.is_control() && c != '\r' && c != '\n' => {
+                panic!("Illegal control character: U+{:06X}.", c as u32)
+            }
+            // All `\r` must be followed by `\n`.
+            Some('\r') => {
+                if let Some('\n') = self.next_char() {
+                    // Treat this sequence as if it was just a `\n`.
+                    self.idx += '\r'.len_utf8() + '\n'.len_utf8();
+                    self.column = 0;
+                    Some('\n')
+                } else {
+                    panic!("Carriage return (U+000D) must be followed by linefeed (U+000A).")
+                }
+            }
+            Some(c) => {
+                self.idx += c.len_utf8();
+                self.column = if c == '\n' { 0 } else { self.column + 1 };
+                Some(c)
+            }
+            None => None,
+        }
+    }
 }
 
 #[cfg(test)]
