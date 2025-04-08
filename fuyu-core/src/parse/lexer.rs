@@ -3,6 +3,7 @@
 use crate::parse::{ByteIdx, Text, TextChars, Token};
 use std::collections::VecDeque;
 use std::iter::FusedIterator;
+use std::num::NonZeroUsize;
 use std::str::Chars;
 
 /// The `Lexer` produces an iterator of [`Spanned`] [`Token`]s from a source [`Text`].
@@ -17,11 +18,18 @@ pub struct Lexer<'a> {
     ///
     /// It is guaranteed that `self.text_chars.idx() >= self.mark_idx`.
     mark_idx: ByteIdx,
-    // TODO: Use this to (1) track indentation and (2) emit `{`, `}`, and `;`.
     /// The indentations tracked by the lexer.
-    indent_stack: Vec<usize>,
+    ///
+    /// The indentation is 1-indexed. When an indentation is `Some`, then it corresponds to a real
+    /// indentation level, however, when an indentation is `None`, then it corresponds to `{` and
+    /// `}` explicitly present in the source.
+    indent_stack: Vec<Option<NonZeroUsize>>,
     /// Queued tokens to emit from the iterator the next time it is advanced.
     queued: VecDeque<Spanned>,
+    /// Tracks whether a token was just emitted that should be followed by a `{`.
+    next_must_be_brace: bool,
+    /// The previous token that was emitted.
+    prev_token: Option<Token>,
 }
 
 /// The values that are produced by the [`Lexer`].
@@ -105,8 +113,10 @@ impl<'a> Lexer<'a> {
             text,
             text_chars: TextChars::new(text),
             mark_idx: 0,
-            indent_stack: vec![],
+            indent_stack: vec![NonZeroUsize::new(1)],
             queued: VecDeque::new(),
+            next_must_be_brace: false,
+            prev_token: None,
         };
         // The index might not start at 0.
         lexer.mark();
@@ -121,6 +131,11 @@ impl<'a> Lexer<'a> {
     /// Shorthand for accessing the index.
     fn idx(&self) -> usize {
         self.text_chars.idx()
+    }
+
+    /// Shorthand for accessing the column.
+    fn column(&self) -> NonZeroUsize {
+        self.text_chars.column()
     }
 
     /// Set the mark index to the current index.
@@ -208,6 +223,7 @@ impl<'a> Lexer<'a> {
 
     /// Create a token that spans from the marked start index to the current index.
     fn emit(&mut self, kind: Token) -> Option<Spanned> {
+        self.prev_token = Some(kind.clone());
         Some(Ok((self.mark_idx, kind, self.idx())))
     }
 
@@ -233,10 +249,126 @@ impl<'a> Lexer<'a> {
     /// This returns `None` at the end of the source text, and once `None` is returned, it will
     /// always return `None` on subsequent calls.
     fn scan(&mut self) -> Option<Spanned> {
+        // Pop from the queue if there is anything ready.
         if !self.queued.is_empty() {
             return self.queued.pop_front();
         }
+        // Skip the whitespace and maybe put tokens in the queue.
+        self.scan_through_whitespace();
+        if !self.queued.is_empty() {
+            return self.queued.pop_front();
+        }
+        // At the end of the text, go through the indentation stack and emit `}` for all unclosed
+        // indentation.
+        if self.peek().is_none() && self.indent_stack.len() > 1 {
+            if let Some(indent) = self.indent_stack.pop() {
+                return self.emit(Token::RightBrace(indent));
+            } else {
+                todo!("TODO: There was an unclosed `{{` in the source.")
+            }
+            // TODO: Does this also need to emit a semicolon?
+        }
+        // Nothing was found so try to find the next token normally. The lexer is now sitting on a
+        // character that can start a token.
+        self.scan_next()
+    }
+
+    /// Scan for tokens in the following whitespace.
+    ///
+    /// This does not return any tokens, but may put some in the queue. This skips all whitespace.
+    fn scan_through_whitespace(&mut self) {
+        // Skip all whitespace and detect if a newline was seen.
+        self.advance_while(|c| char::is_whitespace(c) && c != '\n');
+        let saw_newline = self.advance_if(pat!('\n'));
         self.advance_while(char::is_whitespace);
+        self.mark();
+        // It is possible to emit a `;` and zero of more `}` based on indentation.
+        if saw_newline {
+            self.scan_through_whitespace_handle_newline();
+        }
+        // When a brace is expected, either confirm that it is there or insert one.
+        self.scan_through_whitespace_infer_braces();
+    }
+
+    /// A helper for [`Self::scan_through_whitespace()`] that emits `;` and `{` tokens as required
+    /// after a newline.
+    ///
+    /// This should be called after skipping whitespace if at least one newline was present in the
+    /// skipped space.
+    fn scan_through_whitespace_handle_newline(&mut self) {
+        macro_rules! emit_semicolon {
+            ($lexer:expr) => {
+                // A semicolon is emitted when all of the following hold:
+                //
+                // - The top of the indent stack is an inferred `{`.
+                // - The previous token was not a semicolon.
+                // - At least one token has be emitted so far.
+                if self.indent_stack.last().unwrap().is_some()
+                    && self.prev_token != Some(Token::Semicolon)
+                    && self.prev_token.is_some()
+                {
+                    self.emit_queue(Token::Semicolon);
+                }
+            };
+        };
+        let Some(Some(indent)) = self.indent_stack.last() else {
+            return;
+        };
+        if self.column() == *indent && self.indent_stack.last().unwrap().is_some() {
+            emit_semicolon!(self);
+        } else if self.column() > *indent {
+            // Do nothing, as the expression on the previous line continues on this one.
+        } else {
+            emit_semicolon!(self);
+            loop {
+                let Some(Some(indent)) = self.indent_stack.last() else {
+                    return;
+                };
+                if *indent > self.column() {
+                    // This `NonZeroUsize::new()` can never return `None`, so it is fine to use the
+                    // returned option directly without checking if it is `None`.
+                    self.emit_queue(Token::RightBrace(Some(*indent)));
+                    self.indent_stack.pop();
+                } else {
+                    break;
+                }
+            }
+            // The top of the indentation stack is equal to the current column, otherwise the
+            // program is malformed.
+            let indent = self.indent_stack.last().unwrap().unwrap();
+            if indent != self.column() {
+                // TODO: Emit and error instead of panicking.
+                panic!("Indentation did not return to an allowed level.");
+            }
+        }
+    }
+
+    /// A helper for [`Self::scan_through_whitespace()`] that infers `{` if it is flagged that a
+    /// `{` must appear at the current location.
+    fn scan_through_whitespace_infer_braces(&mut self) {
+        // Condition for whether to run this logic.
+        if !self.next_must_be_brace {
+            return;
+        }
+        self.next_must_be_brace = false;
+        // Handle the `{` token.
+        if self.peek() == Some('{') {
+            // Do nothing, as this token will be lexer normally.
+        } else {
+            // Unwrapping is used instead of simply pushing the `Option<NonZeroUsize>` from
+            // `NonZeroUsize::new()` to panic on the error if `self.column()` ever returns
+            // zero (which it should not, by design).
+            let indent = Some(self.column());
+            self.indent_stack.push(indent);
+            self.emit_queue(Token::LeftBrace(indent));
+        }
+    }
+
+    /// Scan the next token.
+    ///
+    /// It is assumed that the lexer is either on a character that can start a token or at the end
+    /// of the text.
+    fn scan_next(&mut self) -> Option<Spanned> {
         self.mark();
         match self.peek_triplet() {
             //-------------------------------------------------------------------------------------
@@ -282,10 +414,17 @@ impl<'a> Lexer<'a> {
             (Some('['), ..) => self.advance_by_and_emit(1, Token::LeftSquare),
             (Some('\\'), ..) => self.advance_by_and_emit(1, Token::BackSlash),
             (Some(']'), ..) => self.advance_by_and_emit(1, Token::RightSquare),
-            (Some('{'), ..) => self.advance_by_and_emit(1, Token::LeftBrace(None)),
+            (Some('{'), ..) => {
+                self.indent_stack.push(None);
+                self.advance_by_and_emit(1, Token::LeftBrace(None))
+            }
             (Some('|'), Some('|'), ..) => self.advance_by_and_emit(2, Token::PipePipe),
             (Some('|'), ..) => self.advance_by_and_emit(1, Token::Pipe),
-            (Some('}'), ..) => self.advance_by_and_emit(1, Token::RightBrace(None)),
+            (Some('}'), ..) => {
+                // TODO: Need to check if popping the appropriate thing.
+                self.indent_stack.pop();
+                self.advance_by_and_emit(1, Token::RightBrace(None))
+            }
             //-------------------------------------------------------------------------------------
             // Numbers.
             //-------------------------------------------------------------------------------------
@@ -372,14 +511,20 @@ impl<'a> Lexer<'a> {
                 match self.as_marked_str() {
                     // Keywords.
                     "as" => self.emit(Token::KwAs),
-                    "do" => self.emit(Token::KwDo),
+                    "do" => {
+                        self.next_must_be_brace = true;
+                        self.emit(Token::KwDo)
+                    }
                     "else" => self.emit(Token::KwElse),
                     "for" => self.emit(Token::KwFor),
                     "if" => self.emit(Token::KwIf),
                     "immediate" => self.emit(Token::KwImmediate),
                     "import" => self.emit(Token::KwImport),
                     "let" => self.emit(Token::KwLet),
-                    "match" => self.emit(Token::KwMatch),
+                    "match" => {
+                        self.next_must_be_brace = true;
+                        self.emit(Token::KwMatch)
+                    }
                     "panic" => self.emit(Token::KwPanic),
                     "require" => self.emit(Token::KwRequire),
                     "return" => self.emit(Token::KwReturn),
@@ -390,7 +535,10 @@ impl<'a> Lexer<'a> {
                     "unimplemented" => self.emit(Token::KwUnimplemented),
                     "unreachable" => self.emit(Token::KwUnreachable),
                     "use" => self.emit(Token::KwUse),
-                    "when" => self.emit(Token::KwWhen),
+                    "when" => {
+                        self.next_must_be_brace = true;
+                        self.emit(Token::KwWhen)
+                    }
                     // If not a keyword then this must be an identifier.
                     "_" => self.emit(Token::Underscore),
                     ident => {
@@ -509,6 +657,15 @@ mod tests {
         ($name:ident <- $source:expr) => {
             let _text = Text::new($source.into());
             let $name = Lexer::new(&_text);
+        };
+    }
+
+    /// Collect all of the tokens from the lexer into a vector ignoring the positions.
+    ///
+    /// This panics if the lexer emits any errors.
+    macro_rules! collect_tokens {
+        ($lexer:expr) => {
+            $lexer.map(|spanned| spanned.unwrap().1).collect::<Vec<_>>()
         };
     }
 
@@ -989,39 +1146,179 @@ mod tests {
     }
 
     #[test]
-    fn iter() {
+    fn iter_basic() {
         // This does not test every token, only a handful are needed to test the iterator.
         lexer!(lexer <- "let x = 123;");
         assert_eq!(
-            lexer.collect::<Vec<_>>(),
+            collect_tokens!(lexer),
             vec![
-                Ok((0, Token::KwLet, 3)),
-                Ok((4, Token::LowerIdent, 5)),
-                Ok((6, Token::Eq, 7)),
-                Ok((8, Token::DecInt, 11)),
-                Ok((11, Token::Semicolon, 12)),
+                Token::KwLet,
+                Token::LowerIdent,
+                Token::Eq,
+                Token::DecInt,
+                Token::Semicolon,
             ]
         );
         lexer!(lexer <- "  let x = 123;\n");
         assert_eq!(
-            lexer.collect::<Vec<_>>(),
+            collect_tokens!(lexer),
             vec![
-                Ok((2, Token::KwLet, 5)),
-                Ok((6, Token::LowerIdent, 7)),
-                Ok((8, Token::Eq, 9)),
-                Ok((10, Token::DecInt, 13)),
-                Ok((13, Token::Semicolon, 14)),
+                Token::KwLet,
+                Token::LowerIdent,
+                Token::Eq,
+                Token::DecInt,
+                Token::Semicolon,
             ]
         );
         lexer!(lexer <- "let x=123;");
         assert_eq!(
-            lexer.collect::<Vec<_>>(),
+            collect_tokens!(lexer),
             vec![
-                Ok((0, Token::KwLet, 3)),
-                Ok((4, Token::LowerIdent, 5)),
-                Ok((5, Token::Eq, 6)),
-                Ok((6, Token::DecInt, 9)),
-                Ok((9, Token::Semicolon, 10)),
+                Token::KwLet,
+                Token::LowerIdent,
+                Token::Eq,
+                Token::DecInt,
+                Token::Semicolon,
+            ]
+        );
+    }
+
+    #[test]
+    fn iter_infer_semicolons() {
+        // Semicolons should be inferred after `x`, `y`, and `z`.
+        lexer!(lexer <- concat!(
+            "x\n",
+            "y\n",
+            "z\n",
+        ));
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::LowerIdent,
+                Token::Semicolon,
+                Token::LowerIdent,
+                Token::Semicolon,
+                Token::LowerIdent,
+                Token::Semicolon,
+            ]
+        );
+        // Semicolons should be inferred after `x`, and `z`.
+        lexer!(lexer <- concat!(
+            "x\n",
+            "  y\n",
+            "z\n",
+        ));
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::LowerIdent,
+                Token::LowerIdent,
+                Token::Semicolon,
+                Token::LowerIdent,
+                Token::Semicolon,
+            ]
+        );
+    }
+
+    #[test]
+    fn iter_infer_braces() {
+        lexer!(lexer <- "do");
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::KwDo,
+                Token::LeftBrace(Some(NonZeroUsize::new(3).unwrap())),
+                Token::RightBrace(Some(NonZeroUsize::new(3).unwrap())),
+            ]
+        );
+        lexer!(lexer <- "match");
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::KwMatch,
+                Token::LeftBrace(Some(NonZeroUsize::new(6).unwrap())),
+                Token::RightBrace(Some(NonZeroUsize::new(6).unwrap())),
+            ]
+        );
+        lexer!(lexer <- "when");
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::KwWhen,
+                Token::LeftBrace(Some(NonZeroUsize::new(5).unwrap())),
+                Token::RightBrace(Some(NonZeroUsize::new(5).unwrap())),
+            ]
+        );
+    }
+
+    #[test]
+    fn iter_infer_nested_braces() {
+        lexer!(lexer <- concat!(
+            "do\n",
+            "  do\n",
+            "    x\n",
+        ));
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::KwDo,
+                Token::LeftBrace(Some(NonZeroUsize::new(3).unwrap())),
+                Token::KwDo,
+                Token::LeftBrace(Some(NonZeroUsize::new(5).unwrap())),
+                Token::LowerIdent,
+                Token::Semicolon,
+                Token::RightBrace(Some(NonZeroUsize::new(5).unwrap())),
+                Token::RightBrace(Some(NonZeroUsize::new(3).unwrap())),
+            ]
+        );
+    }
+
+    #[test]
+    fn iter_do_not_infer_semicolons_in_explicit_braces() {
+        // Do not infer semicolons within `{ ... }`."
+        lexer!(lexer <- concat!(
+            "do {\n",
+            "  x\n",
+            "  y\n",
+            "}\n",
+        ));
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::KwDo,
+                Token::LeftBrace(None),
+                Token::LowerIdent,
+                Token::LowerIdent,
+                Token::RightBrace(None),
+                Token::Semicolon,
+            ]
+        );
+    }
+
+    #[test]
+    fn iter_infer_semicolons_in_inferred_braces() {
+        // Infer semicolons inside an inferred brace block inside and explicit `{ ... }`.
+        lexer!(lexer <- concat!(
+            "do {\n",
+            "  do \n",
+            "    x\n",
+            "    y\n",
+            "}\n",
+        ));
+        assert_eq!(
+            collect_tokens!(lexer),
+            vec![
+                Token::KwDo,
+                Token::LeftBrace(None),
+                Token::KwDo,
+                Token::LeftBrace(Some(NonZeroUsize::new(5).unwrap())),
+                Token::LowerIdent,
+                Token::Semicolon,
+                Token::LowerIdent,
+                Token::Semicolon,
+                Token::RightBrace(Some(NonZeroUsize::new(5).unwrap())),
+                Token::RightBrace(None),
+                Token::Semicolon,
             ]
         );
     }

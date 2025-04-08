@@ -5,6 +5,7 @@
 //! [`Text`] is optimized for quick look ups of line and column position based on a [`ByteIdx`].
 
 use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 use std::str::Chars;
 
 /// An index into a [`Text`] aligned at the byte level.
@@ -111,6 +112,7 @@ impl LineTable {
     }
 }
 
+// TODO: Make these NonZeroUsize.
 /// A line and column position in a source [`Text`].
 ///
 /// Both the line and column are 0-indexed.
@@ -148,14 +150,14 @@ const BOM: char = '\u{feff}';
 pub(super) struct TextChars<'a> {
     /// The underlying iterator.
     chars: Chars<'a>,
-    /// The characters that were peaked.
-    peaked: VecDeque<char>,
+    /// The characters that were peeked.
+    peeked: VecDeque<char>,
     /// The byte index of the next character (if any) to be emitted.
     idx: ByteIdx,
-    /// The 0-indexed column of the next character (if any) to be emitted.
+    /// The 1-indexed column of the next character (if any) to be emitted.
     ///
     /// Columns are counted in Unicode scalars.
-    column: usize,
+    column: NonZeroUsize,
 }
 
 impl<'a> TextChars<'a> {
@@ -163,9 +165,9 @@ impl<'a> TextChars<'a> {
     pub fn new(text: &'a Text) -> Self {
         let mut text_chars = Self {
             chars: text.as_str().chars(),
-            peaked: VecDeque::new(),
+            peeked: VecDeque::new(),
             idx: 0,
-            column: 0,
+            column: NonZeroUsize::new(1).unwrap(),
         };
         // Skip the BOM.
         if text_chars.peek() == Some(BOM) {
@@ -178,8 +180,8 @@ impl<'a> TextChars<'a> {
     ///
     /// This pulls from the queue (if possible) before advancing the underlying iterator.
     fn next_char(&mut self) -> Option<char> {
-        if !self.peaked.is_empty() {
-            self.peaked.pop_front()
+        if !self.peeked.is_empty() {
+            self.peeked.pop_front()
         } else {
             self.chars.next()
         }
@@ -192,16 +194,16 @@ impl<'a> TextChars<'a> {
 
     /// Peek the next character `n` positions ahead in the text without advancing the iterator.
     pub fn peek_nth(&mut self, n: usize) -> Option<char> {
-        // Make sure that the peak buffer has at least `n` characters (unless the end of the
+        // Make sure that the peek buffer has at least `n` characters (unless the end of the
         // iterator is encountered).
-        while n >= self.peaked.len() {
+        while n >= self.peeked.len() {
             match self.chars.next() {
-                Some(c) => self.peaked.push_back(c),
+                Some(c) => self.peeked.push_back(c),
                 None => return None,
             }
         }
-        // At this point it is guaranteed that `n < self.peaked.len()`.
-        Some(self.peaked[n])
+        // At this point it is guaranteed that `n < self.peeked.len()`.
+        Some(self.peeked[n])
     }
 
     /// The byte index of the next character (if any) to be emitted.
@@ -209,10 +211,10 @@ impl<'a> TextChars<'a> {
         self.idx
     }
 
-    /// The 0-indexed column of the next character (if any) to be emitted.
+    /// The 1-indexed column of the next character (if any) to be emitted.
     ///
     /// Columns are counted in Unicode scalars.
-    pub fn column(&self) -> usize {
+    pub fn column(&self) -> NonZeroUsize {
         self.column
     }
 }
@@ -233,7 +235,7 @@ impl Iterator for TextChars<'_> {
                 if let Some('\n') = self.next_char() {
                     // Treat this sequence as if it was just a `\n`.
                     self.idx += '\r'.len_utf8() + '\n'.len_utf8();
-                    self.column = 0;
+                    self.column = NonZeroUsize::new(1).unwrap();
                     Some('\n')
                 } else {
                     panic!("Carriage return (U+000D) must be followed by linefeed (U+000A).")
@@ -241,7 +243,11 @@ impl Iterator for TextChars<'_> {
             }
             Some(c) => {
                 self.idx += c.len_utf8();
-                self.column = if c == '\n' { 0 } else { self.column + 1 };
+                self.column = if c == '\n' {
+                    NonZeroUsize::new(1).unwrap()
+                } else {
+                    self.column.checked_add(1).unwrap()
+                };
                 Some(c)
             }
             None => None,
