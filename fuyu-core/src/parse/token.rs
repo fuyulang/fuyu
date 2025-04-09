@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
+use std::num::NonZeroUsize;
+
 /// A `Token` is an abstract representation the token type not tied to any value.
 ///
 /// This value is often called the token "kind" throughout this project.
@@ -84,13 +86,21 @@ pub enum Token {
     /// The content is not checked for validity.
     RawString,
     /// `{`.
-    LeftBrace,
+    ///
+    /// The associated value is `None` if the brace appears in the source. When the brace is
+    /// inserted by the lexer, the value is `Some` with the 1-indexed indentation of the column
+    /// where the brace is inserted.
+    LeftBrace(Option<NonZeroUsize>),
     /// `[`.
     LeftSquare,
     /// `(`.
     LeftParen,
     /// `}`.
-    RightBrace,
+    ///
+    /// The associated value is `None` if the brace appears in the source. When the brace is
+    /// inserted by the lexer, the value is `Some` with the 1-indexed indentation of the column
+    /// of the matching automatically inserted [`LeftBrace`][Token::LeftBrace].
+    RightBrace(Option<NonZeroUsize>),
     /// `]`.
     RightSquare,
     /// `)`.
