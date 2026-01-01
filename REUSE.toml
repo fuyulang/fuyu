@@ -1,0 +1,18 @@
+version = 1
+
+# These are all of the source files that are original and created specifically
+# for the project.
+[[annotations]]
+path = [
+  ".commitlintrc.yml",
+  ".editorconfig",
+  ".gitattributes",
+  ".github/workflows/*.yml",
+  "CONTRIBUTING.md",
+  "COPYRIGHT",
+  "README.md",
+  "REUSE.toml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "The Fuyu Project Contributors"
+SPDX-License-Identifier = "MPL-2.0"
